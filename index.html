@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel de Cortesia · Comasa Volkswagen</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#14171a;
+    --panel:#1b2025;
+    --panel-2:#20262c;
+    --line:#2b323a;
+    --line-soft:#242a31;
+    --text:#eceef1;
+    --text-muted:#8a929d;
+    --text-faint:#5c646d;
+    --amber:#f2a900;
+    --amber-dim:#8a6a24;
+    --teal:#35d0ba;
+    --teal-dim:#1f6a5f;
+    --red:#ff5c5c;
+    --red-dim:#7a3535;
+    --steel:#4c6b8a;
+    --radius:10px;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'IBM Plex Sans', sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(1200px 600px at 15% -10%, #1d232a 0%, transparent 60%),
+      var(--bg);
+    color:var(--text);
+    font-family:var(--sans);
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{background:var(--amber);color:#14171a;}
+
+  /* ---------- Top bar ---------- */
+  .topbar{
+    display:flex;align-items:center;gap:16px;
+    padding:16px 28px;
+    border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg, #171b1f 0%, #14171a 100%);
+    flex-wrap:wrap;
+  }
+  .brand{display:flex;align-items:center;gap:12px;margin-right:auto;}
+  .brand-mark{
+    width:38px;height:38px;border-radius:8px;
+    background:linear-gradient(135deg,var(--panel-2),var(--panel));
+    border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;
+    font-family:var(--mono);font-weight:700;color:var(--amber);
+    font-size:13px;letter-spacing:.5px;
+  }
+  .brand-text h1{font-size:15px;margin:0;font-weight:600;letter-spacing:.2px;}
+  .brand-text span{font-size:11px;color:var(--text-muted);letter-spacing:.6px;text-transform:uppercase;}
+
+  select, .btn, input[type=text], input[type=number], input[type=password]{
+    font-family:var(--sans);
+    background:var(--panel-2);
+    color:var(--text);
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:9px 12px;
+    font-size:13px;
+    outline:none;
+  }
+  select:focus, .btn:focus-visible, input:focus{
+    border-color:var(--amber);
+    box-shadow:0 0 0 3px rgba(242,169,0,.15);
+  }
+  .btn{cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-weight:500;transition:border-color .15s, background .15s;}
+  .btn:hover{border-color:var(--steel);}
+  .btn-primary{background:var(--amber);color:#191300;border-color:var(--amber);font-weight:600;}
+  .btn-primary:hover{background:#ffbb1a;border-color:#ffbb1a;}
+  .btn-ghost{background:transparent;}
+  .btn-icon{width:36px;height:36px;padding:0;justify-content:center;}
+
+  /* ---------- Layout ---------- */
+  .wrap{max-width:1180px;margin:0 auto;padding:28px;}
+  .status-line{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-muted);margin-bottom:18px;}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--teal);box-shadow:0 0 8px var(--teal);}
+  .dot.off{background:var(--red);box-shadow:0 0 8px var(--red);}
+  .dot.loading{background:var(--amber);box-shadow:0 0 8px var(--amber);animation:pulse 1s infinite;}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+  /* ---------- Instrument cluster ---------- */
+  .cluster{
+    display:grid;
+    grid-template-columns:280px 1fr;
+    gap:0;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:16px;
+    overflow:hidden;
+    margin-bottom:22px;
+  }
+  .gauge-block{
+    position:relative;
+    padding:26px 20px 20px;
+    display:flex;flex-direction:column;align-items:center;
+    border-right:1px solid var(--line);
+    background:radial-gradient(120% 100% at 50% 0%, #21272d 0%, #191d21 70%);
+  }
+  .gauge-label{font-size:11px;letter-spacing:1.6px;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;}
+  .gauge-svg{width:230px;height:150px;}
+  .gauge-readout{
+    font-family:var(--mono);font-weight:700;font-size:30px;
+    margin-top:-46px;letter-spacing:.5px;
+  }
+  .gauge-sub{font-size:10.5px;color:var(--text-faint);letter-spacing:1px;text-transform:uppercase;margin-top:2px;}
+  .gauge-pct{font-family:var(--mono);font-size:12px;color:var(--text-muted);margin-top:6px;}
+
+  .stat-grid{display:grid;grid-template-columns:repeat(3,1fr);}
+  .stat{
+    padding:22px 20px;
+    border-right:1px solid var(--line-soft);
+    display:flex;flex-direction:column;gap:8px;justify-content:center;
+  }
+  .stat:last-child{border-right:none;}
+  .stat-top{display:flex;align-items:center;gap:8px;}
+  .stat-tick{width:3px;height:14px;border-radius:2px;}
+  .stat-tick.teal{background:var(--teal);}
+  .stat-tick.amber{background:var(--amber);}
+  .stat-tick.steel{background:var(--steel);}
+  .stat-label{font-size:11px;letter-spacing:1.2px;color:var(--text-muted);text-transform:uppercase;}
+  .stat-value{font-family:var(--mono);font-size:24px;font-weight:600;}
+  .stat-value small{font-size:13px;color:var(--text-muted);font-weight:400;}
+  .stat-note{grid-column:1/-1;padding:14px 20px;border-top:1px solid var(--line-soft);font-size:12px;color:var(--text-faint);}
+
+  /* ---------- Toolbar ---------- */
+  .toolbar{
+    display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;
+  }
+  .search{flex:1;min-width:180px;position:relative;}
+  .search input{width:100%;padding-left:34px;}
+  .search::before{
+    content:"⌕";position:absolute;left:12px;top:50%;transform:translateY(-50%);
+    color:var(--text-faint);font-size:15px;
+  }
+  .filter-chip{
+    padding:9px 14px;border-radius:20px;border:1px solid var(--line);
+    background:var(--panel-2);font-size:12.5px;color:var(--text-muted);cursor:pointer;
+    display:flex;align-items:center;gap:6px;
+  }
+  .filter-chip.active{border-color:var(--amber);color:var(--amber);}
+
+  /* ---------- Table ---------- */
+  .table-panel{
+    background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;
+  }
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  thead th{
+    text-align:left;padding:12px 14px;font-size:10.5px;letter-spacing:1px;
+    text-transform:uppercase;color:var(--text-faint);
+    border-bottom:1px solid var(--line);background:var(--panel-2);
+    position:sticky;top:0;
+  }
+  tbody td{padding:12px 14px;border-bottom:1px solid var(--line-soft);vertical-align:top;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:hover{background:#1f252b;cursor:pointer;}
+  .os-code{font-family:var(--mono);color:var(--text);font-weight:600;}
+  .os-sub{font-size:11.5px;color:var(--text-faint);margin-top:2px;}
+  .money{font-family:var(--mono);text-align:right;white-space:nowrap;}
+  .badge{
+    display:inline-flex;align-items:center;gap:5px;padding:4px 9px;border-radius:20px;
+    font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;
+  }
+  .badge.ok{background:rgba(53,208,186,.12);color:var(--teal);}
+  .badge.pendente{background:rgba(242,169,0,.12);color:var(--amber);}
+  .row-actions{display:flex;gap:6px;}
+  .icon-btn{
+    width:28px;height:28px;border-radius:6px;border:1px solid transparent;
+    background:transparent;color:var(--text-faint);cursor:pointer;
+    display:flex;align-items:center;justify-content:center;font-size:14px;
+  }
+  .icon-btn:hover{border-color:var(--line);color:var(--text);}
+  .empty-state{padding:60px 20px;text-align:center;color:var(--text-muted);}
+  .empty-state .glyph{font-size:34px;margin-bottom:10px;opacity:.5;}
+  .empty-state p{margin:4px 0;font-size:13px;}
+
+  /* ---------- Modal ---------- */
+  .overlay{
+    position:fixed;inset:0;background:rgba(10,12,14,.6);backdrop-filter:blur(2px);
+    display:none;align-items:flex-start;justify-content:center;padding:5vh 16px;z-index:50;overflow:auto;
+  }
+  .overlay.open{display:flex;}
+  .modal{
+    background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    width:100%;max-width:560px;padding:24px;
+  }
+  .modal h2{margin:0 0 4px;font-size:16px;}
+  .modal .sub{font-size:12px;color:var(--text-muted);margin-bottom:18px;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .field{display:flex;flex-direction:column;gap:6px;margin-bottom:12px;}
+  .field label{font-size:11px;letter-spacing:.6px;text-transform:uppercase;color:var(--text-muted);}
+  .field textarea{
+    font-family:var(--sans);background:var(--panel-2);color:var(--text);
+    border:1px solid var(--line);border-radius:8px;padding:9px 12px;font-size:13px;resize:vertical;min-height:56px;
+  }
+  .segmented{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;}
+  .segmented button{
+    flex:1;padding:9px;background:var(--panel-2);color:var(--text-muted);border:none;font-size:12.5px;
+    cursor:pointer;font-weight:600;letter-spacing:.4px;text-transform:uppercase;
+  }
+  .segmented button.active[data-v="ok"]{background:rgba(53,208,186,.15);color:var(--teal);}
+  .segmented button.active[data-v="pendente"]{background:rgba(242,169,0,.15);color:var(--amber);}
+  .modal-actions{display:flex;justify-content:space-between;align-items:center;margin-top:18px;gap:10px;}
+  .modal-actions .right{display:flex;gap:8px;}
+
+  /* ---------- Toast ---------- */
+  .toast{
+    position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);
+    background:var(--panel-2);border:1px solid var(--line);border-radius:10px;
+    padding:12px 18px;font-size:13px;display:flex;align-items:center;gap:10px;
+    opacity:0;transition:opacity .2s, transform .2s;pointer-events:none;z-index:80;max-width:90vw;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  .toast.error{border-color:var(--red-dim);}
+  .toast .tdot{width:7px;height:7px;border-radius:50%;background:var(--teal);flex:none;}
+  .toast.error .tdot{background:var(--red);}
+
+  @media (max-width:720px){
+    .cluster{grid-template-columns:1fr;}
+    .gauge-block{border-right:none;border-bottom:1px solid var(--line);}
+    .stat-grid{grid-template-columns:1fr 1fr;}
+    .stat:nth-child(2){border-right:none;}
+    table{font-size:12px;}
+    thead th:nth-child(3), tbody td:nth-child(3){display:none;}
+  }
+  @media (prefers-reduced-motion: reduce){
+    .dot.loading{animation:none;}
+    * {transition:none !important;}
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-mark">CB</div>
+    <div class="brand-text">
+      <h1>Painel de Cortesia</h1>
+      <span>Comasa Volkswagen · Pós-vendas</span>
+    </div>
+  </div>
+  <select id="sheetSelect" title="Ano / aba da planilha"></select>
+  <button class="btn btn-ghost btn-icon" id="refreshBtn" title="Atualizar dados">⟳</button>
+  <button class="btn btn-ghost btn-icon" id="settingsBtn" title="Configurar conexão">⚙</button>
+  <button class="btn btn-primary" id="newRecordBtn">+ Nova OS</button>
+</div>
+
+<div class="wrap">
+
+  <div class="status-line">
+    <span class="dot loading" id="statusDot"></span>
+    <span id="statusText">Conectando à planilha…</span>
+  </div>
+
+  <div class="cluster">
+    <div class="gauge-block">
+      <div class="gauge-label">Disponível</div>
+      <svg class="gauge-svg" viewBox="0 0 230 150" id="gaugeSvg">
+        <path id="gaugeTrackBg" d="" stroke="#2b323a" stroke-width="14" fill="none" stroke-linecap="round"/>
+        <path id="gaugeTrackFill" d="" stroke="url(#gaugeGrad)" stroke-width="14" fill="none" stroke-linecap="round"/>
+        <defs>
+          <linearGradient id="gaugeGrad" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#ff5c5c"/>
+            <stop offset="50%" stop-color="#f2a900"/>
+            <stop offset="100%" stop-color="#35d0ba"/>
+          </linearGradient>
+        </defs>
+        <g id="needleGroup">
+          <line x1="115" y1="130" x2="115" y2="38" stroke="#eceef1" stroke-width="3" stroke-linecap="round"/>
+          <circle cx="115" cy="130" r="7" fill="#eceef1"/>
+          <circle cx="115" cy="130" r="3" fill="#14171a"/>
+        </g>
+      </svg>
+      <div class="gauge-readout" id="gaugeValue">R$ 0</div>
+      <div class="gauge-sub">de R$ 0 iniciais</div>
+      <div class="gauge-pct" id="gaugePct">0% disponível</div>
+    </div>
+
+    <div>
+      <div class="stat-grid">
+        <div class="stat">
+          <div class="stat-top"><span class="stat-tick steel"></span><span class="stat-label">Saldo inicial</span></div>
+          <div class="stat-value" id="statInicial">R$ 0</div>
+        </div>
+        <div class="stat">
+          <div class="stat-top"><span class="stat-tick amber"></span><span class="stat-label">Pendente</span></div>
+          <div class="stat-value" id="statPendente">R$ 0</div>
+        </div>
+        <div class="stat">
+          <div class="stat-top"><span class="stat-tick teal"></span><span class="stat-label">Finalizado</span></div>
+          <div class="stat-value" id="statFinalizado">R$ 0</div>
+        </div>
+      </div>
+      <div class="stat-note" id="statNote">Disponível = saldo inicial − (peças + mão de obra) de todas as OS lançadas, finalizadas ou não.</div>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <div class="search"><input type="text" id="searchInput" placeholder="Buscar por OS, placa, chassi, modelo ou descrição…"></div>
+    <div class="filter-chip active" data-filter="todas">Todas</div>
+    <div class="filter-chip" data-filter="pendente">Pendentes</div>
+    <div class="filter-chip" data-filter="ok">Finalizadas</div>
+  </div>
+
+  <div class="table-panel">
+    <table>
+      <thead>
+        <tr>
+          <th>OS / Veículo</th>
+          <th>Placa</th>
+          <th>Descrição</th>
+          <th class="money">Total</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+    <div class="empty-state" id="emptyState" style="display:none;">
+      <div class="glyph">◎</div>
+      <p><strong>Nenhuma OS lançada ainda</strong></p>
+      <p>Use “+ Nova OS” para registrar o primeiro atendimento em cortesia.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: nova/editar OS -->
+<div class="overlay" id="recordOverlay">
+  <div class="modal">
+    <h2 id="recordModalTitle">Nova OS</h2>
+    <div class="sub">Os valores de peças e mão de obra são somados ao total comprometido do budget assim que a OS é salva.</div>
+    <div class="grid2">
+      <div class="field"><label>Nº da OS</label><input type="text" id="f_os" placeholder="PS 50931"></div>
+      <div class="field"><label>Placa</label><input type="text" id="f_placa" placeholder="UFS6F05"></div>
+    </div>
+    <div class="field"><label>Modelo</label><input type="text" id="f_modelo" placeholder="NOVA SAVEIRO TRENDLINE CS"></div>
+    <div class="field"><label>Chassi</label><input type="text" id="f_chassi" placeholder="9BWKL45U7TP082751"></div>
+    <div class="field"><label>Descrição do defeito / peça</label><input type="text" id="f_descricao" placeholder="Forro do teto"></div>
+    <div class="grid2">
+      <div class="field"><label>Código da peça</label><input type="text" id="f_codigoPeca" placeholder="5U7867501AHPD6"></div>
+      <div class="field"><label>Status</label>
+        <div class="segmented">
+          <button type="button" data-v="pendente" id="statusPendenteBtn">Pendente</button>
+          <button type="button" data-v="ok" id="statusOkBtn">Finalizada</button>
+        </div>
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>Peças (R$)</label><input type="number" step="0.01" id="f_pecas" placeholder="0,00"></div>
+      <div class="field"><label>Mão de obra (R$)</label><input type="number" step="0.01" id="f_maoObra" placeholder="0,00"></div>
+    </div>
+    <div class="field"><label>Observações</label><textarea id="f_observacoes" placeholder="Valores aproximados, consequentes, etc."></textarea></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="deleteRecordBtn" style="color:var(--red);border-color:var(--red-dim);display:none;">Excluir OS</button>
+      <div class="right">
+        <button class="btn btn-ghost" id="cancelRecordBtn">Cancelar</button>
+        <button class="btn btn-primary" id="saveRecordBtn">Salvar OS</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: configuração da conexão -->
+<div class="overlay" id="settingsOverlay">
+  <div class="modal">
+    <h2>Conexão com a planilha</h2>
+    <div class="sub">Cole aqui a URL do Web App do Google Apps Script publicado na sua planilha de saldo de cortesia. Veja o guia de instalação para criar essa URL uma única vez.</div>
+    <div class="field"><label>URL do Web App</label><input type="text" id="f_scriptUrl" placeholder="https://script.google.com/macros/s/AKfycb.../exec"></div>
+    <div class="modal-actions">
+      <span style="font-size:12px;color:var(--text-faint);" id="settingsHint"></span>
+      <div class="right">
+        <button class="btn btn-ghost" id="cancelSettingsBtn">Cancelar</button>
+        <button class="btn btn-primary" id="saveSettingsBtn">Conectar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span class="tdot"></span><span id="toastText"></span></div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---- Config: preencha SCRIPT_URL uma vez publicado o Apps Script, ----
+  // ---- ou configure em tempo de uso pelo botão de engrenagem. ----
+  var SCRIPT_URL = "";
+
+  var state = {
+    scriptUrl: SCRIPT_URL,
+    sheets: [],
+    currentSheet: null,
+    data: { saldoInicial: 0, pendente: 0, finalizado: 0, disponivel: 0, records: [] },
+    filter: "todas",
+    search: "",
+    editingRowIndex: null
+  };
+
+  var el = {
+    sheetSelect: document.getElementById('sheetSelect'),
+    refreshBtn: document.getElementById('refreshBtn'),
+    settingsBtn: document.getElementById('settingsBtn'),
+    newRecordBtn: document.getElementById('newRecordBtn'),
+    statusDot: document.getElementById('statusDot'),
+    statusText: document.getElementById('statusText'),
+    gaugeValue: document.getElementById('gaugeValue'),
+    gaugeSub: document.querySelector('.gauge-sub'),
+    gaugePct: document.getElementById('gaugePct'),
+    gaugeTrackFill: document.getElementById('gaugeTrackFill'),
+    gaugeTrackBg: document.getElementById('gaugeTrackBg'),
+    needleGroup: document.getElementById('needleGroup'),
+    statInicial: document.getElementById('statInicial'),
+    statPendente: document.getElementById('statPendente'),
+    statFinalizado: document.getElementById('statFinalizado'),
+    tableBody: document.getElementById('tableBody'),
+    emptyState: document.getElementById('emptyState'),
+    searchInput: document.getElementById('searchInput'),
+    chips: document.querySelectorAll('.filter-chip'),
+    recordOverlay: document.getElementById('recordOverlay'),
+    recordModalTitle: document.getElementById('recordModalTitle'),
+    saveRecordBtn: document.getElementById('saveRecordBtn'),
+    cancelRecordBtn: document.getElementById('cancelRecordBtn'),
+    deleteRecordBtn: document.getElementById('deleteRecordBtn'),
+    settingsOverlay: document.getElementById('settingsOverlay'),
+    saveSettingsBtn: document.getElementById('saveSettingsBtn'),
+    cancelSettingsBtn: document.getElementById('cancelSettingsBtn'),
+    fScriptUrl: document.getElementById('f_scriptUrl'),
+    settingsHint: document.getElementById('settingsHint'),
+    toast: document.getElementById('toast'),
+    toastText: document.getElementById('toastText'),
+    statusPendenteBtn: document.getElementById('statusPendenteBtn'),
+    statusOkBtn: document.getElementById('statusOkBtn')
+  };
+
+  function fmt(n){
+    n = Number(n) || 0;
+    return n.toLocaleString('pt-BR', {style:'currency', currency:'BRL', maximumFractionDigits:0});
+  }
+
+  function showToast(msg, isError){
+    el.toastText.textContent = msg;
+    el.toast.classList.toggle('error', !!isError);
+    el.toast.classList.add('show');
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(function(){ el.toast.classList.remove('show'); }, 4200);
+  }
+
+  function setStatus(mode, text){
+    el.statusDot.className = 'dot' + (mode === 'error' ? ' off' : mode === 'loading' ? ' loading' : '');
+    el.statusText.textContent = text;
+  }
+
+  // ---- Conexão com o Apps Script ----
+  function apiGet(params){
+    var url = state.scriptUrl + (state.scriptUrl.indexOf('?') >= 0 ? '&' : '?') +
+      Object.keys(params).map(function(k){ return k + '=' + encodeURIComponent(params[k]); }).join('&');
+    return fetch(url).then(function(r){ return r.json(); });
+  }
+  function apiPost(body){
+    return fetch(state.scriptUrl, {
+      method: 'POST',
+      headers: {'Content-Type': 'text/plain;charset=utf-8'},
+      body: JSON.stringify(body)
+    }).then(function(r){ return r.json(); });
+  }
+
+  function requireConnection(){
+    if (!state.scriptUrl){
+      setStatus('error', 'Nenhuma planilha conectada.');
+      showToast('Configure a URL do Web App na engrenagem para conectar sua planilha.', true);
+      openSettings();
+      return false;
+    }
+    return true;
+  }
+
+  function loadSheetList(){
+    if (!requireConnection()) return;
+    setStatus('loading', 'Carregando abas da planilha…');
+    apiGet({action:'sheets'}).then(function(res){
+      if (!res.ok) throw new Error(res.error || 'Falha ao listar abas.');
+      state.sheets = res.sheets;
+      el.sheetSelect.innerHTML = state.sheets.map(function(s){ return '<option value="'+s+'">'+s+'</option>'; }).join('');
+      state.currentSheet = state.sheets[0];
+      el.sheetSelect.value = state.currentSheet;
+      loadData();
+    }).catch(function(err){
+      setStatus('error', 'Não foi possível conectar.');
+      showToast(err.message || 'Verifique se o Web App foi publicado com acesso liberado.', true);
+    });
+  }
+
+  function loadData(){
+    if (!requireConnection()) return;
+    setStatus('loading', 'Sincronizando com a planilha…');
+    apiGet({action:'list', sheet: state.currentSheet}).then(function(res){
+      if (!res.ok) throw new Error(res.error || 'Falha ao carregar dados.');
+      state.data = res.data;
+      setStatus('ok', 'Sincronizado · aba ' + state.currentSheet);
+      render();
+    }).catch(function(err){
+      setStatus('error', 'Falha na sincronização.');
+      showToast(err.message || 'Não foi possível ler a planilha.', true);
+    });
+  }
+
+  // ---- Render ----
+  function polarToCartesian(cx, cy, r, angleDeg){
+    var rad = (angleDeg - 180) * Math.PI / 180;
+    return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+  }
+  function arcPath(cx, cy, r, startAngle, endAngle){
+    var start = polarToCartesian(cx, cy, r, endAngle);
+    var end = polarToCartesian(cx, cy, r, startAngle);
+    var largeArc = endAngle - startAngle <= 180 ? 0 : 1;
+    return 'M ' + start.x + ' ' + start.y + ' A ' + r + ' ' + r + ' 0 ' + largeArc + ' 0 ' + end.x + ' ' + end.y;
+  }
+
+  function renderGauge(){
+    var d = state.data;
+    var pct = d.saldoInicial > 0 ? Math.max(0, Math.min(1, d.disponivel / d.saldoInicial)) : 0;
+    var cx = 115, cy = 130, r = 92;
+    // sweep from 200deg (left, empty) to -20deg (right, full) across 0..180 param space we use 8..172
+    var full = arcPath(cx, cy, r, 8, 172);
+    el.gaugeTrackBg.setAttribute('d', full);
+    var fillEnd = 8 + (172 - 8) * pct;
+    el.gaugeTrackFill.setAttribute('d', arcPath(cx, cy, r, 8, fillEnd));
+    var needleAngle = 180 + (8 + (172-8)*pct); // maps 0->188(left-down) roughly; adjust rotation baseline
+    // needle baseline points up (angle 0 = pointing to 90deg/up in our line coords), rotate around (cx,cy)
+    var rot = -90 + (8 + (172-8)*pct);
+    el.needleGroup.setAttribute('transform', 'rotate(' + rot + ' ' + cx + ' ' + cy + ')');
+
+    el.gaugeValue.textContent = fmt(d.disponivel);
+    el.gaugeValue.style.color = pct < 0.15 ? 'var(--red)' : pct < 0.4 ? 'var(--amber)' : 'var(--text)';
+    el.gaugeSub.textContent = 'de ' + fmt(d.saldoInicial) + ' iniciais';
+    el.gaugePct.textContent = Math.round(pct*100) + '% disponível';
+  }
+
+  function renderStats(){
+    var d = state.data;
+    el.statInicial.textContent = fmt(d.saldoInicial);
+    el.statPendente.textContent = fmt(d.pendente);
+    el.statFinalizado.textContent = fmt(d.finalizado);
+  }
+
+  function matchesFilter(r){
+    if (state.filter === 'pendente' && r.status !== 'pendente') return false;
+    if (state.filter === 'ok' && r.status !== 'ok') return false;
+    if (state.search){
+      var s = state.search.toLowerCase();
+      var hay = [r.os, r.placa, r.chassi, r.modelo, r.descricao].join(' ').toLowerCase();
+      if (hay.indexOf(s) === -1) return false;
+    }
+    return true;
+  }
+
+  function renderTable(){
+    var records = state.data.records.filter(matchesFilter);
+    if (records.length === 0){
+      el.tableBody.innerHTML = '';
+      el.emptyState.style.display = 'block';
+      return;
+    }
+    el.emptyState.style.display = 'none';
+    el.tableBody.innerHTML = records.map(function(r){
+      return '<tr data-row="'+r.rowIndex+'">' +
+        '<td><div class="os-code">'+escapeHtml(r.os||'—')+'</div><div class="os-sub">'+escapeHtml(r.modelo||'')+'</div></td>' +
+        '<td>'+escapeHtml(r.placa||'—')+'</td>' +
+        '<td>'+escapeHtml(r.descricao||'—')+'</td>' +
+        '<td class="money">'+fmt(r.total)+'</td>' +
+        '<td><span class="badge '+r.status+'">'+(r.status==='ok'?'Finalizada':'Pendente')+'</span></td>' +
+        '<td><div class="row-actions"><button class="icon-btn" title="Editar">✎</button></div></td>' +
+      '</tr>';
+    }).join('');
+    Array.prototype.forEach.call(el.tableBody.querySelectorAll('tr'), function(tr){
+      tr.addEventListener('click', function(){
+        openRecordModal(Number(tr.getAttribute('data-row')));
+      });
+    });
+  }
+
+  function escapeHtml(s){
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+
+  function render(){
+    renderGauge();
+    renderStats();
+    renderTable();
+  }
+
+  // ---- Modal: registro ----
+  function openRecordModal(rowIndex){
+    state.editingRowIndex = rowIndex || null;
+    var r = rowIndex ? state.data.records.find(function(x){ return x.rowIndex === rowIndex; }) : null;
+    el.recordModalTitle.textContent = r ? 'Editar OS ' + (r.os || '') : 'Nova OS';
+    document.getElementById('f_os').value = r ? r.os || '' : '';
+    document.getElementById('f_placa').value = r ? r.placa || '' : '';
+    document.getElementById('f_modelo').value = r ? r.modelo || '' : '';
+    document.getElementById('f_chassi').value = r ? r.chassi || '' : '';
+    document.getElementById('f_descricao').value = r ? r.descricao || '' : '';
+    document.getElementById('f_codigoPeca').value = r ? r.codigoPeca || '' : '';
+    document.getElementById('f_pecas').value = r ? r.pecas || '' : '';
+    document.getElementById('f_maoObra').value = r ? r.maoObra || '' : '';
+    document.getElementById('f_observacoes').value = r ? r.observacoes || '' : '';
+    setStatusSegment(r ? r.status : 'pendente');
+    el.deleteRecordBtn.style.display = r ? 'inline-flex' : 'none';
+    el.recordOverlay.classList.add('open');
+  }
+  function closeRecordModal(){ el.recordOverlay.classList.remove('open'); }
+
+  function setStatusSegment(v){
+    el.statusPendenteBtn.classList.toggle('active', v !== 'ok');
+    el.statusOkBtn.classList.toggle('active', v === 'ok');
+    el.statusPendenteBtn.dataset.selected = v !== 'ok' ? '1' : '';
+    el.statusOkBtn.dataset.selected = v === 'ok' ? '1' : '';
+  }
+  el.statusPendenteBtn.addEventListener('click', function(){ setStatusSegment('pendente'); });
+  el.statusOkBtn.addEventListener('click', function(){ setStatusSegment('ok'); });
+
+  function currentStatusValue(){
+    return el.statusOkBtn.dataset.selected === '1' ? 'ok' : 'pendente';
+  }
+
+  el.saveRecordBtn.addEventListener('click', function(){
+    if (!requireConnection()) return;
+    var record = {
+      os: document.getElementById('f_os').value.trim(),
+      placa: document.getElementById('f_placa').value.trim(),
+      modelo: document.getElementById('f_modelo').value.trim(),
+      chassi: document.getElementById('f_chassi').value.trim(),
+      descricao: document.getElementById('f_descricao').value.trim(),
+      codigoPeca: document.getElementById('f_codigoPeca').value.trim(),
+      pecas: parseFloat(document.getElementById('f_pecas').value) || 0,
+      maoObra: parseFloat(document.getElementById('f_maoObra').value) || 0,
+      observacoes: document.getElementById('f_observacoes').value.trim(),
+      status: currentStatusValue()
+    };
+    if (!record.os && !record.descricao){
+      showToast('Informe ao menos o número da OS ou a descrição.', true);
+      return;
+    }
+    el.saveRecordBtn.textContent = 'Salvando…';
+    apiPost({action:'saveRecord', sheet: state.currentSheet, record: record, rowIndex: state.editingRowIndex})
+      .then(function(res){
+        el.saveRecordBtn.textContent = 'Salvar OS';
+        if (!res.ok) throw new Error(res.error || 'Falha ao salvar.');
+        state.data = res.data;
+        render();
+        closeRecordModal();
+        showToast('OS ' + (record.os || '') + ' salva na planilha.');
+      }).catch(function(err){
+        el.saveRecordBtn.textContent = 'Salvar OS';
+        showToast(err.message || 'Não foi possível salvar a OS.', true);
+      });
+  });
+
+  el.deleteRecordBtn.addEventListener('click', function(){
+    if (!requireConnection() || !state.editingRowIndex) return;
+    if (!confirm('Excluir esta OS da planilha? Essa ação não pode ser desfeita.')) return;
+    apiPost({action:'deleteRecord', sheet: state.currentSheet, rowIndex: state.editingRowIndex})
+      .then(function(res){
+        if (!res.ok) throw new Error(res.error || 'Falha ao excluir.');
+        state.data = res.data;
+        render();
+        closeRecordModal();
+        showToast('OS removida.');
+      }).catch(function(err){
+        showToast(err.message || 'Não foi possível excluir a OS.', true);
+      });
+  });
+
+  el.cancelRecordBtn.addEventListener('click', closeRecordModal);
+  el.recordOverlay.addEventListener('click', function(e){ if (e.target === el.recordOverlay) closeRecordModal(); });
+  el.newRecordBtn.addEventListener('click', function(){ openRecordModal(null); });
+
+  // ---- Modal: configurações ----
+  function openSettings(){
+    el.fScriptUrl.value = state.scriptUrl;
+    el.settingsHint.textContent = state.scriptUrl ? 'Conectado.' : 'Ainda não conectado a nenhuma planilha.';
+    el.settingsOverlay.classList.add('open');
+  }
+  function closeSettings(){ el.settingsOverlay.classList.remove('open'); }
+  el.settingsBtn.addEventListener('click', openSettings);
+  el.cancelSettingsBtn.addEventListener('click', closeSettings);
+  el.settingsOverlay.addEventListener('click', function(e){ if (e.target === el.settingsOverlay) closeSettings(); });
+  el.saveSettingsBtn.addEventListener('click', function(){
+    var url = el.fScriptUrl.value.trim();
+    if (!url){ showToast('Cole a URL do Web App publicado no Apps Script.', true); return; }
+    state.scriptUrl = url;
+    closeSettings();
+    loadSheetList();
+  });
+
+  // ---- Toolbar ----
+  el.refreshBtn.addEventListener('click', loadData);
+  el.sheetSelect.addEventListener('change', function(){
+    state.currentSheet = el.sheetSelect.value;
+    loadData();
+  });
+  el.searchInput.addEventListener('input', function(){
+    state.search = el.searchInput.value.trim();
+    renderTable();
+  });
+  Array.prototype.forEach.call(el.chips, function(chip){
+    chip.addEventListener('click', function(){
+      Array.prototype.forEach.call(el.chips, function(c){ c.classList.remove('active'); });
+      chip.classList.add('active');
+      state.filter = chip.getAttribute('data-filter');
+      renderTable();
+    });
+  });
+
+  // ---- Init ----
+  render();
+  if (state.scriptUrl){
+    loadSheetList();
+  } else {
+    setStatus('error', 'Nenhuma planilha conectada.');
+    openSettings();
+  }
+})();
+</script>
+</body>
+</html>
