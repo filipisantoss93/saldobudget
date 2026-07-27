@@ -1,5 +1,6 @@
 const CONFIG = Object.freeze({
   SPREADSHEET_ID_PROPERTY: 'SPREADSHEET_ID',
+  INITIAL_BALANCE_PROPERTY: 'SALDO_INICIAL',
   LOG_SHEET: 'LOG',
   DEFAULT_STATUS: 'Pendente',
   CANCELED_STATUS: 'Cancelado',
@@ -59,13 +60,21 @@ function handleRequest_(payload) {
       case 'sheets':
       case 'listSheets':
         return jsonResponse_({ ok: true, sheets: listSheets_() });
-      case 'list':
-        return jsonResponse_({ ok: true, records: listRecords_(payload.sheet) });
-      case 'saveRecord':
-        return jsonResponse_({ ok: true, record: saveRecord_(payload) });
+      case 'list': {
+        const data = buildDashboardData_(payload.sheet);
+        return jsonResponse_({ ok: true, data: data, records: data.records });
+      }
+      case 'saveRecord': {
+        const record = saveRecord_(payload);
+        const data = buildDashboardData_(payload.sheet);
+        return jsonResponse_({ ok: true, record: record, data: data, records: data.records });
+      }
       case 'cancelRecord':
-      case 'deleteRecord':
-        return jsonResponse_({ ok: true, record: cancelRecord_(payload) });
+      case 'deleteRecord': {
+        const record = cancelRecord_(payload);
+        const data = buildDashboardData_(payload.sheet);
+        return jsonResponse_({ ok: true, record: record, data: data, records: data.records });
+      }
       default:
         return jsonResponse_({ ok: false, error: 'Ação não reconhecida.' });
     }
@@ -91,8 +100,43 @@ function listRecords_(sheetName) {
 
   const rows = sheet.getRange(2, 1, lastRow - 1, CONFIG.HEADERS.length).getValues();
   return rows
-    .filter(row => row[0])
-    .map(rowToRecord_);
+    .map((row, index) => ({ row: row, rowIndex: index + 2 }))
+    .filter(item => item.row[0])
+    .map(item => Object.assign(rowToRecord_(item.row), { rowIndex: item.rowIndex }));
+}
+
+function buildDashboardData_(sheetName) {
+  const records = listRecords_(sheetName).map(toLegacyRecord_);
+  const saldoInicial = getInitialBalance_();
+  let pendente = 0;
+  let finalizado = 0;
+  let comprometido = 0;
+
+  records.forEach(record => {
+    const status = normalizeStatus_(record.status);
+    const total = Number(record.total) || 0;
+
+    if (status !== 'cancelado') comprometido += total;
+    if (status === 'finalizado' || status === 'ok' || status === 'aprovado') {
+      finalizado += total;
+    } else if (status !== 'cancelado') {
+      pendente += total;
+    }
+  });
+
+  return {
+    saldoInicial: saldoInicial,
+    pendente: roundCurrency_(pendente),
+    finalizado: roundCurrency_(finalizado),
+    disponivel: roundCurrency_(saldoInicial - comprometido),
+    records: records
+  };
+}
+
+function getInitialBalance_() {
+  const raw = PropertiesService.getScriptProperties()
+    .getProperty(CONFIG.INITIAL_BALANCE_PROPERTY);
+  return raw ? parseMoney_(raw) : 0;
 }
 
 function saveRecord_(payload) {
@@ -103,7 +147,15 @@ function saveRecord_(payload) {
     const sheet = getDataSheet_(payload.sheet);
     ensureHeaders_(sheet);
 
-    const record = normalizeRecord_(payload.record || payload);
+    const input = Object.assign({}, payload.record || payload);
+    if (!input.id && payload.rowIndex) {
+      const rowIndex = Number(payload.rowIndex);
+      if (rowIndex >= 2 && rowIndex <= sheet.getLastRow()) {
+        input.id = String(sheet.getRange(rowIndex, 1).getValue() || '').trim();
+      }
+    }
+
+    const record = normalizeRecord_(input);
     validateRecord_(record);
 
     const now = new Date();
@@ -120,7 +172,7 @@ function saveRecord_(payload) {
         .setValues([recordToRow_(record)]);
 
       appendLog_('ATUALIZAR', record.id, sheet.getName(), record.responsible, previous, record);
-      return record;
+      return serializeRecord_(record);
     }
 
     record.id = Utilities.getUuid();
@@ -129,7 +181,7 @@ function saveRecord_(payload) {
     sheet.appendRow(recordToRow_(record));
 
     appendLog_('CRIAR', record.id, sheet.getName(), record.responsible, null, record);
-    return record;
+    return serializeRecord_(record);
   } finally {
     lock.releaseLock();
   }
@@ -143,7 +195,14 @@ function cancelRecord_(payload) {
     const sheet = getDataSheet_(payload.sheet);
     ensureHeaders_(sheet);
 
-    const id = String(payload.id || (payload.record && payload.record.id) || '').trim();
+    let id = String(payload.id || (payload.record && payload.record.id) || '').trim();
+    if (!id && payload.rowIndex) {
+      const legacyRowIndex = Number(payload.rowIndex);
+      if (legacyRowIndex >= 2 && legacyRowIndex <= sheet.getLastRow()) {
+        id = String(sheet.getRange(legacyRowIndex, 1).getValue() || '').trim();
+      }
+    }
+
     if (!id) throw new Error('ID do registro não informado.');
 
     const rowIndex = findRowById_(sheet, id);
@@ -163,7 +222,7 @@ function cancelRecord_(payload) {
       .setValues([recordToRow_(record)]);
 
     appendLog_('CANCELAR', id, sheet.getName(), record.responsible, previous, record);
-    return record;
+    return serializeRecord_(record);
   } finally {
     lock.releaseLock();
   }
@@ -193,7 +252,9 @@ function normalizeRecord_(input) {
 }
 
 function validateRecord_(record) {
-  if (!record.orderNumber) throw new Error('Informe o número da OS.');
+  if (!record.orderNumber && !record.description) {
+    throw new Error('Informe o número da OS ou a descrição.');
+  }
   if (record.partsValue < 0 || record.laborValue < 0) {
     throw new Error('Os valores não podem ser negativos.');
   }
@@ -302,6 +363,36 @@ function rowToRecord_(row) {
     responsible: row[13],
     updatedAt: row[14]
   });
+}
+
+function toLegacyRecord_(record) {
+  const status = normalizeStatus_(record.status);
+  return {
+    id: record.id,
+    rowIndex: record.rowIndex,
+    os: record.orderNumber,
+    placa: record.plate,
+    modelo: record.model,
+    chassi: record.chassis,
+    descricao: record.description,
+    codigoPeca: record.partCode,
+    pecas: record.partsValue,
+    maoObra: record.laborValue,
+    total: record.total,
+    status: status === 'finalizado' || status === 'aprovado' || status === 'ok' ? 'ok' : 'pendente',
+    observacoes: record.notes,
+    responsavel: record.responsible,
+    createdAt: record.createdAt,
+    updatedAt: record.updatedAt
+  };
+}
+
+function normalizeStatus_(status) {
+  return String(status || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
 }
 
 function serializeRecord_(record) {
