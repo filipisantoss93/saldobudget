@@ -33,8 +33,12 @@ function handleRequest_(payload) {
       saveRecord_(payload);
       return jsonResponse_(buildDashboardResponse_(payload.sheet));
     }
-    if (action === 'cancelRecord' || action === 'deleteRecord') {
+    if (action === 'cancelRecord') {
       cancelRecord_(payload);
+      return jsonResponse_(buildDashboardResponse_(payload.sheet));
+    }
+    if (action === 'deleteRecord' || action === 'hardDeleteRecord') {
+      deleteRecord_(payload);
       return jsonResponse_(buildDashboardResponse_(payload.sheet));
     }
     if (action === 'addBalance') {
@@ -108,15 +112,33 @@ function cancelRecord_(payload) {
   try {
     const sheet = getDataSheet_(payload.sheet);
     ensureHeaders_(sheet);
-    let rowIndex = Number(payload.rowIndex || 0);
-    const id = String(payload.id || (payload.record && payload.record.id) || '').trim();
-    if ((!rowIndex || rowIndex < 2) && id) rowIndex = findRowById_(sheet,id);
-    if (rowIndex < 2 || rowIndex > sheet.getLastRow()) throw new Error('Registro não encontrado.');
+    const rowIndex = resolveRowIndex_(sheet, payload);
     const previous = rowToRecord_(sheet.getRange(rowIndex,1,1,CONFIG.HEADERS.length).getValues()[0],rowIndex);
     const record = Object.assign({},previous,{ status:'cancelado', updatedAt:new Date(), responsible:String(payload.responsible || previous.responsible || '').trim() });
     sheet.getRange(rowIndex,1,1,CONFIG.HEADERS.length).setValues([recordToRow_(record)]);
     appendLog_('CANCELAR',record.id,sheet.getName(),record.responsible,previous,record);
   } finally { lock.releaseLock(); }
+}
+
+function deleteRecord_(payload) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const sheet = getDataSheet_(payload.sheet);
+    ensureHeaders_(sheet);
+    const rowIndex = resolveRowIndex_(sheet, payload);
+    const previous = rowToRecord_(sheet.getRange(rowIndex,1,1,CONFIG.HEADERS.length).getValues()[0],rowIndex);
+    appendLog_('EXCLUIR_DEFINITIVAMENTE',previous.id,sheet.getName(),String(payload.responsible || previous.responsavel || '').trim(),previous,null);
+    sheet.deleteRow(rowIndex);
+  } finally { lock.releaseLock(); }
+}
+
+function resolveRowIndex_(sheet, payload) {
+  let rowIndex = Number(payload.rowIndex || 0);
+  const id = String(payload.id || (payload.record && payload.record.id) || '').trim();
+  if ((!rowIndex || rowIndex < 2) && id) rowIndex = findRowById_(sheet,id);
+  if (rowIndex < 2 || rowIndex > sheet.getLastRow()) throw new Error('Registro não encontrado.');
+  return rowIndex;
 }
 
 function addBalance_(payload) {
