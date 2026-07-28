@@ -1,11 +1,14 @@
-const CACHE_NAME = 'painel-cortesia-v1';
+const CACHE_NAME = 'painel-cortesia-v2';
 const APP_SHELL = [
   '/',
   '/index.html',
   '/site.webmanifest',
   '/pwa-install.js',
-  '/icon-192x192.png',
-  '/icon-512x512.png'
+  '/icon-192x192.png?v=2',
+  '/icon-512x512.png?v=2',
+  '/icon-maskable-512x512.png?v=2',
+  '/apple-touch-icon.png?v=2',
+  '/favicon.ico?v=2'
 ];
 
 self.addEventListener('install', event => {
