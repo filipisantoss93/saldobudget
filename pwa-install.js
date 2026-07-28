@@ -16,7 +16,7 @@
     style.id = 'pwa-install-styles';
     style.textContent = [
       '.pwa-install{position:fixed;left:16px;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));z-index:300;max-width:520px;margin:auto;padding:16px;border:1px solid #3b4652;border-radius:16px;background:rgba(26,31,36,.98);box-shadow:0 20px 50px rgba(0,0,0,.42);color:#f2f4f7;font-family:IBM Plex Sans,system-ui,sans-serif;display:flex;gap:14px;align-items:flex-start}',
-      '.pwa-install__icon{width:48px;height:48px;flex:0 0 48px;border-radius:12px;background:#111315 url("/icon-192x192.png") center/cover no-repeat;border:1px solid #313943}',
+      '.pwa-install__icon{width:48px;height:48px;flex:0 0 48px;border-radius:12px;background:#111315 url("/icon-192x192.png?v=2") center/cover no-repeat;border:1px solid #313943}',
       '.pwa-install__content{min-width:0;flex:1}',
       '.pwa-install__title{font-size:15px;font-weight:700;margin:0 0 4px}',
       '.pwa-install__text{font-size:13px;line-height:1.45;color:#a2abb6;margin:0}',
@@ -83,7 +83,7 @@
 
   window.addEventListener('load', function () {
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/service-worker.js').catch(function (error) {
+      navigator.serviceWorker.register('/service-worker.js?v=2').catch(function (error) {
         console.warn('Falha ao registrar o Service Worker:', error);
       });
     }
