@@ -6,6 +6,8 @@ on:
     paths:
       - icon-source.svg
       - site.webmanifest
+      - pwa-install.js
+      - service-worker.js
       - .github/workflows/generate-web-icons.yml
   workflow_dispatch:
 
@@ -35,14 +37,15 @@ jobs:
           convert -size 512x512 xc:'#111315' /tmp/icon-inner.png -gravity center -composite icon-maskable-512x512.png
           convert icon-16x16.png icon-32x32.png icon-48x48.png favicon.ico
 
-      - name: Vincular pacote ao HTML
+      - name: Vincular PWA ao HTML
         run: |
           python3 - <<'PY'
           from pathlib import Path
+
           path = Path('index.html')
           html = path.read_text(encoding='utf-8')
-          marker = '<title>Painel de Cortesia · Comasa Volkswagen</title>'
-          links = '''<title>Painel de Cortesia · Comasa Volkswagen</title>
+          title = '<title>Painel de Cortesia · Comasa Volkswagen</title>'
+          head_links = '''<title>Painel de Cortesia · Comasa Volkswagen</title>
           <meta name="theme-color" content="#0A84FF">
           <meta name="apple-mobile-web-app-capable" content="yes">
           <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -52,19 +55,25 @@ jobs:
           <link rel="icon" type="image/png" sizes="32x32" href="/icon-32x32.png">
           <link rel="icon" type="image/png" sizes="16x16" href="/icon-16x16.png">
           <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">'''
+
           if '<link rel="manifest" href="/site.webmanifest">' not in html:
-              html = html.replace(marker, links)
-              path.write_text(html, encoding='utf-8')
+              html = html.replace(title, head_links)
+
+          install_script = '<script src="/pwa-install.js" defer></script>'
+          if install_script not in html:
+              html = html.replace('</body>', install_script + '\n</body>')
+
+          path.write_text(html, encoding='utf-8')
           PY
 
       - name: Publicar arquivos gerados
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add index.html favicon.ico icon-16x16.png icon-32x32.png icon-48x48.png apple-touch-icon.png icon-192x192.png icon-512x512.png icon-maskable-512x512.png
+          git add index.html favicon.ico icon-16x16.png icon-32x32.png icon-48x48.png apple-touch-icon.png icon-192x192.png icon-512x512.png icon-maskable-512x512.png pwa-install.js service-worker.js site.webmanifest
           if git diff --cached --quiet; then
             echo "Nenhuma alteração necessária."
           else
-            git commit -m "Gerar pacote de ícones para Web, Android, iOS e PWA"
+            git commit -m "Ativar instalação do Painel como PWA"
             git push
           fi
