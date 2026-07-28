@@ -37,20 +37,20 @@ jobs:
       - name: Validar secrets
         env:
           CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
-          CLASP_JSON: ${{ secrets.CLASP_JSON }}
+          CLASP_SCRIPT_ID: ${{ secrets.CLASP_SCRIPT_ID }}
           CLASP_DEPLOYMENT_ID: ${{ secrets.CLASP_DEPLOYMENT_ID }}
         run: |
           test -n "$CLASPRC_JSON" || (echo "Secret CLASPRC_JSON ausente" && exit 1)
-          test -n "$CLASP_JSON" || (echo "Secret CLASP_JSON ausente" && exit 1)
+          test -n "$CLASP_SCRIPT_ID" || (echo "Secret CLASP_SCRIPT_ID ausente" && exit 1)
           test -n "$CLASP_DEPLOYMENT_ID" || (echo "Secret CLASP_DEPLOYMENT_ID ausente" && exit 1)
 
       - name: Configurar autenticação e projeto
         env:
           CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
-          CLASP_JSON: ${{ secrets.CLASP_JSON }}
+          CLASP_SCRIPT_ID: ${{ secrets.CLASP_SCRIPT_ID }}
         run: |
           printf '%s' "$CLASPRC_JSON" > "$HOME/.clasprc.json"
-          printf '%s' "$CLASP_JSON" > .clasp.json
+          node -e "const fs=require('fs'); fs.writeFileSync('.clasp.json', JSON.stringify({scriptId: process.env.CLASP_SCRIPT_ID, rootDir: 'apps-script'}));"
           chmod 600 "$HOME/.clasprc.json" .clasp.json
 
       - name: Conferir arquivos do Apps Script
