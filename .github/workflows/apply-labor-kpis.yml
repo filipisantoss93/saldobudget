@@ -1,0 +1,69 @@
+name: Aplicar indicadores de mão de obra
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/apply-labor-kpis.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Atualizar dashboard
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('index.html')
+          html = path.read_text(encoding='utf-8')
+
+          html = html.replace(
+              '.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));',
+              '.kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));'
+          )
+
+          old_card = '''<div class="kpi"><div class="kpi-label">Ticket médio</div><div class="kpi-value" id="avgTicket">R$ 0,00</div><div class="kpi-help">Média por OS</div></div>'''
+          new_cards = '''<div class="kpi"><div class="kpi-label">Ticket médio de mão de obra</div><div class="kpi-value" id="avgLabor">R$ 0,00</div><div class="kpi-help">Média de mão de obra por OS</div></div><div class="kpi"><div class="kpi-label">Total de mão de obra</div><div class="kpi-value" id="totalLabor">R$ 0,00</div><div class="kpi-help">Somatório de todas as OS</div></div><div class="kpi"><div class="kpi-label">Máximo de mão de obra por OS</div><div class="kpi-value" id="maxLabor">R$ 0,00</div><div class="kpi-help">Maior valor individual registrado</div></div>'''
+          if old_card not in html:
+              raise SystemExit('Card original de ticket médio não encontrado.')
+          html = html.replace(old_card, new_cards, 1)
+
+          old_els = "pendingCount:$('pendingCount'),finalCount:$('finalCount'),avgTicket:$('avgTicket'),statusDonut:"
+          new_els = "pendingCount:$('pendingCount'),finalCount:$('finalCount'),avgLabor:$('avgLabor'),totalLabor:$('totalLabor'),maxLabor:$('maxLabor'),statusDonut:"
+          if old_els not in html:
+              raise SystemExit('Mapeamento antigo dos KPIs não encontrado.')
+          html = html.replace(old_els, new_els, 1)
+
+          old_calc = "sum=records.reduce((a,r)=>a+(Number(r.total)||0),0),avg=records.length?sum/records.length:0,finalPct="
+          new_calc = "laborTotal=records.reduce((a,r)=>a+(Number(r.maoObra)||0),0),laborAvg=records.length?laborTotal/records.length:0,laborMax=records.reduce((max,r)=>Math.max(max,Number(r.maoObra)||0),0),finalPct="
+          if old_calc not in html:
+              raise SystemExit('Cálculo antigo de ticket médio não encontrado.')
+          html = html.replace(old_calc, new_calc, 1)
+
+          old_assign = "els.avgTicket.textContent=fmt(avg);els.totalOs.textContent="
+          new_assign = "els.avgLabor.textContent=fmt(laborAvg);els.totalLabor.textContent=fmt(laborTotal);els.maxLabor.textContent=fmt(laborMax);els.totalOs.textContent="
+          if old_assign not in html:
+              raise SystemExit('Atribuição antiga do ticket médio não encontrada.')
+          html = html.replace(old_assign, new_assign, 1)
+
+          path.write_text(html, encoding='utf-8')
+          PY
+
+      - name: Publicar alteração
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          if git diff --cached --quiet; then
+            echo "Nenhuma alteração necessária."
+          else
+            git commit -m "Adicionar indicadores de mão de obra ao dashboard"
+            git push
+          fi
