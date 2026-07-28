@@ -1,0 +1,69 @@
+name: Deploy Google Apps Script
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "apps-script/**"
+      - "package.json"
+      - ".claspignore"
+      - ".github/workflows/deploy-apps-script.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: apps-script-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Baixar repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm install
+
+      - name: Validar secrets
+        env:
+          CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+          CLASP_JSON: ${{ secrets.CLASP_JSON }}
+          CLASP_DEPLOYMENT_ID: ${{ secrets.CLASP_DEPLOYMENT_ID }}
+        run: |
+          test -n "$CLASPRC_JSON" || (echo "Secret CLASPRC_JSON ausente" && exit 1)
+          test -n "$CLASP_JSON" || (echo "Secret CLASP_JSON ausente" && exit 1)
+          test -n "$CLASP_DEPLOYMENT_ID" || (echo "Secret CLASP_DEPLOYMENT_ID ausente" && exit 1)
+
+      - name: Configurar autenticação e projeto
+        env:
+          CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+          CLASP_JSON: ${{ secrets.CLASP_JSON }}
+        run: |
+          printf '%s' "$CLASPRC_JSON" > "$HOME/.clasprc.json"
+          printf '%s' "$CLASP_JSON" > .clasp.json
+          chmod 600 "$HOME/.clasprc.json" .clasp.json
+
+      - name: Conferir arquivos do Apps Script
+        run: npx clasp show-file-status
+
+      - name: Enviar código para o Apps Script
+        run: npx clasp push --force
+
+      - name: Atualizar implantação Web App existente
+        env:
+          CLASP_DEPLOYMENT_ID: ${{ secrets.CLASP_DEPLOYMENT_ID }}
+        run: |
+          npx clasp create-deployment \
+            --deploymentId "$CLASP_DEPLOYMENT_ID" \
+            --description "GitHub ${GITHUB_SHA::7}"
