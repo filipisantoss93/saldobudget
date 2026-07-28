@@ -1,0 +1,18 @@
+{
+  "name": "saldo-budget",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Painel interno de controle de saldo e OS com Google Apps Script.",
+  "scripts": {
+    "clasp:login": "clasp login",
+    "clasp:status": "clasp show-file-status",
+    "clasp:pull": "clasp pull",
+    "clasp:push": "clasp push --force",
+    "clasp:open": "clasp open-script",
+    "clasp:deploy": "clasp create-deployment --description \"Deploy manual\"",
+    "clasp:deploy:existing": "clasp create-deployment --deploymentId $CLASP_DEPLOYMENT_ID --description \"Deploy manual\""
+  },
+  "devDependencies": {
+    "@google/clasp": "^3.0.0"
+  }
+}
