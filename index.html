@@ -54,5 +54,6 @@ $('addBalanceBtn').onclick=()=>els.balanceOverlay.classList.add('open');$('saveB
 $('settingsBtn').onclick=()=>{$('f_scriptUrl').value=state.scriptUrl;els.settingsOverlay.classList.add('open')};$('saveSettingsBtn').onclick=()=>{var url=$('f_scriptUrl').value.trim();if(!url)return toast('Informe a URL.',true);state.scriptUrl=url;localStorage.setItem('saldoBudgetScriptUrl',url);els.settingsOverlay.classList.remove('open');loadSheets()};$('newRecordBtn').onclick=()=>openRecord(null);$('refreshBtn').onclick=loadData;els.sheet.onchange=()=>{state.currentSheet=els.sheet.value;loadData()};$('searchInput').oninput=function(){state.search=this.value.trim();render()};document.querySelectorAll('.filter-chip').forEach(b=>b.onclick=()=>{document.querySelectorAll('.filter-chip').forEach(x=>x.classList.remove('active'));b.classList.add('active');state.filter=b.dataset.filter;render()});$('closeRecordBtn').onclick=()=>els.recordOverlay.classList.remove('open');$('cancelBalanceBtn').onclick=()=>els.balanceOverlay.classList.remove('open');$('cancelSettingsBtn').onclick=()=>els.settingsOverlay.classList.remove('open');[els.recordOverlay,els.balanceOverlay,els.settingsOverlay].forEach(o=>o.onclick=e=>{if(e.target===o)o.classList.remove('open')});loadSheets();
 })();
 </script>
+<script src="/pwa-install.js" defer></script>
 </body>
 </html>
