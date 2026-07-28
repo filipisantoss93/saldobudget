@@ -1,0 +1,45 @@
+name: Atualizar URL do Apps Script
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/update-apps-script-url.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-url:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Atualizar URL padrão no index.html
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('index.html')
+          html = path.read_text(encoding='utf-8')
+          old = 'https://script.google.com/macros/s/AKfycbwYngcFKyEFmdNorxlp6NIKTjN3vaXh0hYX-W0m7_fbUE7RfVb-hYfW92geXmwwglEk/exec'
+          new = 'https://script.google.com/macros/s/AKfycbxqhKH-G2RaaxSAenFhkCMOEyp0n8bU8lNuBJq5hxO84Q1z4hjVjYkZiOBCNKLTDjTU/exec'
+
+          if old not in html:
+              raise SystemExit('URL antiga não encontrada no index.html')
+
+          path.write_text(html.replace(old, new), encoding='utf-8')
+          PY
+
+      - name: Publicar alteração
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          if git diff --cached --quiet; then
+            echo "Nenhuma alteração necessária."
+          else
+            git commit -m "Atualizar URL do Web App do Apps Script"
+            git push
+          fi
