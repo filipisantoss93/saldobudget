@@ -208,7 +208,7 @@ function ensureLogSheet_() {
 
 function normalizeRecord_(input) {
   const partsValue = parseMoney_(input.partsValue ?? input.valorPecas ?? input.pecas);
-  const laborValue = parseMoney_(input.laborValue ?? input.valorMaoObra ?? input.maoDeObra);
+  const laborValue = parseMoney_(input.laborValue ?? input.valorMaoObra ?? input.maoObra ?? input.maoDeObra);
   const rawStatus = String(input.status || CONFIG.DEFAULT_STATUS).trim().toLowerCase();
   return { id:String(input.id || '').trim(), createdAt:input.createdAt ? new Date(input.createdAt) : null, orderNumber:String(input.orderNumber ?? input.os ?? '').trim(), plate:String(input.plate ?? input.placa ?? '').trim().toUpperCase(), model:String(input.model ?? input.modelo ?? '').trim(), chassis:String(input.chassis ?? input.chassi ?? '').trim().toUpperCase(), description:String(input.description ?? input.descricao ?? '').trim(), partCode:String(input.partCode ?? input.codigoPeca ?? '').trim(), partsValue:partsValue, laborValue:laborValue, total:roundCurrency_(partsValue + laborValue), status:rawStatus === 'ok' || rawStatus === 'finalizado' || rawStatus === 'finalizada' ? 'ok' : rawStatus === 'cancelado' ? 'cancelado' : 'pendente', notes:String(input.notes ?? input.observacoes ?? '').trim(), responsible:String(input.responsible ?? input.responsavel ?? '').trim(), updatedAt:input.updatedAt ? new Date(input.updatedAt) : null };
 }
