@@ -1,0 +1,33 @@
+name: Executar implementação de histórico de saldo
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/run-balance-implementation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  implement:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Aplicar alterações preparadas
+        run: |
+          sed -n '23,138p' .github/workflows/implement-balance-history.yml | sed 's/^          //' > /tmp/implement.py
+          python3 /tmp/implement.py
+      - name: Validar implementação
+        run: |
+          grep -q 'Histórico de saldo' index.html
+          grep -q 'desktop-money' index.html
+          grep -q 'function updateBalance_' apps-script/Code.gs
+      - name: Publicar implementação
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html apps-script/Code.gs
+          git commit -m 'Implementar histórico, edição de saldo e valores por OS'
+          git push
