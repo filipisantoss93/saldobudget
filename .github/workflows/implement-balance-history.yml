@@ -1,0 +1,149 @@
+name: Implementar histórico e edição de saldo
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/implement-balance-history.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  implement:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Aplicar alterações
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          def replace_once(text, old, new, label):
+              if old not in text:
+                  raise SystemExit(f'Trecho não encontrado: {label}')
+              return text.replace(old, new, 1)
+
+          index_path = Path('index.html')
+          html = index_path.read_text(encoding='utf-8')
+
+          html = replace_once(
+              html,
+              '<div class="page-head"><div class="status-line"><span class="dot loading" id="statusDot"></span><span id="statusText">Conectando à planilha…</span></div><button class="btn btn-add" id="addBalanceBtn">+ Adicionar saldo</button></div>',
+              '<div class="page-head"><div class="status-line"><span class="dot loading" id="statusDot"></span><span id="statusText">Conectando à planilha…</span></div><div class="right"><button class="btn" id="balanceHistoryBtn">Histórico de saldo</button><button class="btn btn-add" id="addBalanceBtn">+ Adicionar saldo</button></div></div>',
+              'ações de saldo'
+          )
+
+          html = replace_once(
+              html,
+              '<section class="table-panel"><table><thead><tr><th>OS / Veículo</th><th>Placa</th><th>Descrição</th><th class="money">Total</th><th>Status</th></tr></thead><tbody id="tableBody"></tbody></table><div class="empty" id="emptyState">Nenhuma OS lançada ainda.</div></section>',
+              '<section class="table-panel"><table><thead><tr><th>OS / Veículo</th><th>Placa</th><th>Descrição</th><th class="money desktop-money">Peças</th><th class="money desktop-money">Mão de obra</th><th class="money">Total</th><th>Status</th></tr></thead><tbody id="tableBody"></tbody></table><div class="empty" id="emptyState">Nenhuma OS lançada ainda.</div></section>',
+              'cabeçalho da tabela'
+          )
+
+          html = replace_once(
+              html,
+              '<div class="overlay" id="settingsOverlay">',
+              '<div class="overlay" id="balanceHistoryOverlay"><div class="modal"><h2>Histórico de saldo</h2><div class="sub">Aportes registrados na aba atual. Use Editar para ajustar um lançamento existente.</div><div id="balanceHistoryList"></div><div class="modal-actions"><span></span><div class="right"><button class="btn" id="closeBalanceHistoryBtn">Fechar</button></div></div></div></div>\n<div class="overlay" id="settingsOverlay">',
+              'modal de histórico'
+          )
+
+          html = replace_once(
+              html,
+              '.toast.error{border-color:#74343b}',
+              '.toast.error{border-color:#74343b}.balance-list{display:grid;gap:10px}.balance-item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;padding:13px;border:1px solid var(--line2);border-radius:12px;background:var(--panel2)}.balance-item strong{display:block;font-family:var(--mono)}.balance-item small{display:block;color:var(--muted);margin-top:4px}.balance-actions{display:flex;gap:8px}.balance-empty{padding:28px 12px;text-align:center;color:var(--muted)}@media(max-width:900px){.desktop-money{display:none}}',
+              'estilos do histórico'
+          )
+
+          html = replace_once(
+              html,
+              "var state={scriptUrl:localStorage.getItem('saldoBudgetScriptUrl')||DEFAULT_SCRIPT_URL,sheets:[],currentSheet:null,data:{saldoInicial:0,pendente:0,finalizado:0,utilizado:0,disponivel:0,records:[]},filter:'todas',search:'',editingRowIndex:null};",
+              "var state={scriptUrl:localStorage.getItem('saldoBudgetScriptUrl')||DEFAULT_SCRIPT_URL,sheets:[],currentSheet:null,data:{saldoInicial:0,pendente:0,finalizado:0,utilizado:0,disponivel:0,records:[],aportes:[]},filter:'todas',search:'',editingRowIndex:null,editingBalanceId:null};",
+              'estado da aplicação'
+          )
+
+          html = replace_once(
+              html,
+              "settingsOverlay:$('settingsOverlay'),toast:$('toast')};",
+              "settingsOverlay:$('settingsOverlay'),balanceHistoryOverlay:$('balanceHistoryOverlay'),balanceHistoryList:$('balanceHistoryList'),toast:$('toast')};",
+              'referências do histórico'
+          )
+
+          old_render = "els.table.innerHTML=records.map(r=>'<tr data-row=\"'+r.rowIndex+'\"><td><strong>'+esc(r.os||'—')+'</strong><br><small>'+esc(r.modelo||'')+'</small></td><td>'+esc(r.placa||'—')+'</td><td>'+esc(r.descricao||'—')+'</td><td class=\"money\">'+fmt(r.total)+'</td><td><span class=\"badge '+r.status+'\">'+(r.status==='ok'?'Finalizada':'Pendente')+'</span></td></tr>').join('');"
+          new_render = "els.table.innerHTML=records.map(r=>'<tr data-row=\"'+r.rowIndex+'\"><td><strong>'+esc(r.os||'—')+'</strong><br><small>'+esc(r.modelo||'')+'</small></td><td>'+esc(r.placa||'—')+'</td><td>'+esc(r.descricao||'—')+'</td><td class=\"money desktop-money\">'+fmt(r.pecas)+'</td><td class=\"money desktop-money\">'+fmt(r.maoObra)+'</td><td class=\"money\">'+fmt(r.total)+'</td><td><span class=\"badge '+r.status+'\">'+(r.status==='ok'?'Finalizada':'Pendente')+'</span></td></tr>').join('');"
+          html = replace_once(html, old_render, new_render, 'linhas da tabela')
+
+          old_balance = "$('addBalanceBtn').onclick=()=>els.balanceOverlay.classList.add('open');$('saveBalanceBtn').onclick=()=>{var value=Number($('f_balanceValue').value)||0;if(value<=0)return toast('Informe um valor maior que zero.',true);apiPost({action:'addBalance',sheet:state.currentSheet,value:value,note:$('f_balanceNote').value.trim()}).then(res=>{if(!res.ok)throw new Error(res.error);state.data=res.data;els.balanceOverlay.classList.remove('open');render();toast('Saldo adicionado.')}).catch(e=>toast(e.message,true))};"
+          new_balance = "function renderBalanceHistory(){var items=(state.data.aportes||[]).slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));els.balanceHistoryList.innerHTML=items.length?'<div class=\"balance-list\">'+items.map(item=>'<div class=\"balance-item\"><div><strong>'+fmt(item.value)+'</strong><small>'+esc(item.note||'Sem observação')+' · '+(item.date?new Date(item.date).toLocaleString('pt-BR'):'Data não informada')+'</small></div><div class=\"balance-actions\"><button class=\"btn\" data-edit-balance=\"'+esc(item.id)+'\">Editar</button><button class=\"btn btn-danger\" data-delete-balance=\"'+esc(item.id)+'\">Excluir</button></div></div>').join('')+'</div>':'<div class=\"balance-empty\">Nenhum aporte registrado nesta aba.</div>';els.balanceHistoryList.querySelectorAll('[data-edit-balance]').forEach(btn=>btn.onclick=()=>openBalanceEditor(btn.dataset.editBalance));els.balanceHistoryList.querySelectorAll('[data-delete-balance]').forEach(btn=>btn.onclick=()=>deleteBalance(btn.dataset.deleteBalance))}function openBalanceEditor(id){var item=(state.data.aportes||[]).find(x=>String(x.id)===String(id));if(!item)return;state.editingBalanceId=item.id;$('f_balanceValue').value=item.value||'';$('f_balanceNote').value=item.note||'';els.balanceHistoryOverlay.classList.remove('open');els.balanceOverlay.querySelector('h2').textContent='Editar saldo';els.balanceOverlay.querySelector('.sub').textContent='Altere o lançamento selecionado. O saldo disponível será recalculado.';$('saveBalanceBtn').textContent='Salvar alteração';els.balanceOverlay.classList.add('open')}function resetBalanceForm(){state.editingBalanceId=null;$('f_balanceValue').value='';$('f_balanceNote').value='';els.balanceOverlay.querySelector('h2').textContent='Adicionar saldo';els.balanceOverlay.querySelector('.sub').textContent='Registre cada novo aporte trimestral sem alterar o histórico anterior.';$('saveBalanceBtn').textContent='Adicionar saldo'}function deleteBalance(id){var item=(state.data.aportes||[]).find(x=>String(x.id)===String(id));if(!item)return;if(!confirm('Excluir o aporte de '+fmt(item.value)+'? O saldo disponível será recalculado.'))return;var check=prompt('Digite EXCLUIR para confirmar a exclusão definitiva:');if(check!=='EXCLUIR')return;apiPost({action:'deleteBalance',sheet:state.currentSheet,id:id}).then(res=>{if(!res.ok)throw new Error(res.error);state.data=res.data;renderBalanceHistory();render();toast('Aporte excluído.')}).catch(e=>toast(e.message,true))}$('balanceHistoryBtn').onclick=()=>{renderBalanceHistory();els.balanceHistoryOverlay.classList.add('open')};$('addBalanceBtn').onclick=()=>{resetBalanceForm();els.balanceOverlay.classList.add('open')};$('saveBalanceBtn').onclick=()=>{var value=Number($('f_balanceValue').value)||0,note=$('f_balanceNote').value.trim();if(value<=0)return toast('Informe um valor maior que zero.',true);if(state.editingBalanceId&&!confirm('Confirmar alteração deste aporte para '+fmt(value)+'? O saldo disponível será recalculado.'))return;var body={action:state.editingBalanceId?'updateBalance':'addBalance',sheet:state.currentSheet,value:value,note:note};if(state.editingBalanceId)body.id=state.editingBalanceId;apiPost(body).then(res=>{if(!res.ok)throw new Error(res.error);state.data=res.data;els.balanceOverlay.classList.remove('open');resetBalanceForm();render();toast(body.action==='updateBalance'?'Saldo atualizado.':'Saldo adicionado.')}).catch(e=>toast(e.message,true))};"
+          html = replace_once(html, old_balance, new_balance, 'ações de saldo')
+
+          html = replace_once(
+              html,
+              "$('cancelBalanceBtn').onclick=()=>els.balanceOverlay.classList.remove('open');",
+              "$('cancelBalanceBtn').onclick=()=>{els.balanceOverlay.classList.remove('open');resetBalanceForm()};$('closeBalanceHistoryBtn').onclick=()=>els.balanceHistoryOverlay.classList.remove('open');",
+              'fechamento dos modais'
+          )
+
+          html = replace_once(
+              html,
+              '[els.recordOverlay,els.balanceOverlay,els.settingsOverlay].forEach',
+              '[els.recordOverlay,els.balanceOverlay,els.balanceHistoryOverlay,els.settingsOverlay].forEach',
+              'overlay do histórico'
+          )
+
+          index_path.write_text(html, encoding='utf-8')
+
+          code_path = Path('apps-script/Code.gs')
+          code = code_path.read_text(encoding='utf-8')
+          code = replace_once(
+              code,
+              "    if (action === 'addBalance') { addBalance_(payload); return jsonResponse_(buildDashboardResponse_(payload.sheet)); }\n    if (action === 'deleteBalance') { deleteBalance_(payload); return jsonResponse_(buildDashboardResponse_(payload.sheet)); }",
+              "    if (action === 'addBalance') { addBalance_(payload); return jsonResponse_(buildDashboardResponse_(payload.sheet)); }\n    if (action === 'updateBalance') { updateBalance_(payload); return jsonResponse_(buildDashboardResponse_(payload.sheet)); }\n    if (action === 'deleteBalance') { deleteBalance_(payload); return jsonResponse_(buildDashboardResponse_(payload.sheet)); }",
+              'rota updateBalance'
+          )
+
+          insert_before = 'function deleteBalance_(payload) {'
+          update_fn = '''function updateBalance_(payload) {
+  const lock = LockService.getScriptLock(); lock.waitLock(10000);
+  try {
+    const id = String(payload.id || '').trim();
+    if (!id) throw new Error('Aporte não informado.');
+    const sheetName = String(payload.sheet || '').trim();
+    getDataSheet_(sheetName);
+    const value = parseMoney_(payload.value ?? payload.valor);
+    if (!(value > 0)) throw new Error('Informe um valor maior que zero.');
+    const sheet = getOrCreateBalanceSheet_();
+    const lastRow = sheet.getLastRow();
+    if (lastRow < 2) throw new Error('Aporte não encontrado.');
+    const rows = sheet.getRange(2,1,lastRow-1,CONFIG.BALANCE_HEADERS.length).getValues();
+    const index = rows.findIndex(r => String(r[0]) === id && String(r[2]) === sheetName);
+    if (index === -1) throw new Error('Aporte não encontrado.');
+    const rowIndex = index + 2;
+    const row = rows[index];
+    const previous = { id:row[0], date:toIsoString_(row[1]), sheet:row[2], value:Number(row[3]) || 0, note:row[4] || '', responsible:row[5] || '' };
+    const responsible = String(payload.responsible || payload.responsavel || previous.responsible || '').trim();
+    const next = { id:previous.id, date:row[1], sheet:sheetName, value:value, note:String(payload.note || payload.observacao || '').trim(), responsible:responsible };
+    sheet.getRange(rowIndex,1,1,CONFIG.BALANCE_HEADERS.length).setValues([[next.id,next.date,next.sheet,next.value,next.note,next.responsible]]);
+    appendLog_('ATUALIZAR_SALDO',next.id,sheetName,responsible,previous,next);
+  } finally { lock.releaseLock(); }
+}
+
+'''
+          if insert_before not in code:
+              raise SystemExit('Trecho não encontrado: função deleteBalance_')
+          code = code.replace(insert_before, update_fn + insert_before, 1)
+          code_path.write_text(code, encoding='utf-8')
+          PY
+      - name: Validar alterações
+        run: |
+          grep -q "Histórico de saldo" index.html
+          grep -q "desktop-money">Peças" index.html
+          grep -q "function updateBalance_" apps-script/Code.gs
+      - name: Publicar implementação
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html apps-script/Code.gs
+          git commit -m "Implementar histórico e edição de saldo"
+          git push
