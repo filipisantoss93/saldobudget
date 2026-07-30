@@ -21,6 +21,8 @@ jobs:
           from pathlib import Path
 
           def replace_once(text, old, new, label):
+              if new in text:
+                  return text
               if old not in text:
                   raise SystemExit(f'Trecho não encontrado: {label}')
               return text.replace(old, new, 1)
@@ -103,8 +105,9 @@ jobs:
               'rota updateBalance'
           )
 
-          insert_before = 'function deleteBalance_(payload) {'
-          update_fn = '''function updateBalance_(payload) {
+          if 'function updateBalance_(payload)' not in code:
+              insert_before = 'function deleteBalance_(payload) {'
+              update_fn = '''function updateBalance_(payload) {
   const lock = LockService.getScriptLock(); lock.waitLock(10000);
   try {
     const id = String(payload.id || '').trim();
@@ -130,20 +133,29 @@ jobs:
 }
 
 '''
-          if insert_before not in code:
-              raise SystemExit('Trecho não encontrado: função deleteBalance_')
-          code = code.replace(insert_before, update_fn + insert_before, 1)
+              if insert_before not in code:
+                  raise SystemExit('Trecho não encontrado: função deleteBalance_')
+              code = code.replace(insert_before, update_fn + insert_before, 1)
           code_path.write_text(code, encoding='utf-8')
           PY
       - name: Validar alterações
         run: |
-          grep -q "Histórico de saldo" index.html
-          grep -q "desktop-money">Peças" index.html
-          grep -q "function updateBalance_" apps-script/Code.gs
+          python3 - <<'PY'
+          from pathlib import Path
+          html = Path('index.html').read_text(encoding='utf-8')
+          code = Path('apps-script/Code.gs').read_text(encoding='utf-8')
+          assert 'Histórico de saldo' in html
+          assert 'desktop-money">Peças' in html
+          assert 'function updateBalance_' in code
+          PY
       - name: Publicar implementação
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add index.html apps-script/Code.gs
-          git commit -m "Implementar histórico e edição de saldo"
-          git push
+          if git diff --cached --quiet; then
+            echo "Nenhuma alteração pendente."
+          else
+            git commit -m "Implementar histórico e edição de saldo"
+            git push
+          fi
