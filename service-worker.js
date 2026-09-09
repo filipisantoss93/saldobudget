@@ -1,9 +1,9 @@
-const CACHE_NAME = 'painel-cortesia-v2';
+const CACHE_NAME = 'painel-cortesia-v3';
 const APP_SHELL = [
   '/',
   '/index.html',
-  '/site.webmanifest',
-  '/pwa-install.js',
+  '/site.webmanifest?v=3',
+  '/pwa-install.js?v=3',
   '/icon-192x192.png?v=2',
   '/icon-512x512.png?v=2',
   '/icon-maskable-512x512.png?v=2',
