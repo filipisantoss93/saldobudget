@@ -1,8 +1,10 @@
 const CONFIG = Object.freeze({
   SPREADSHEET_ID_PROPERTY: 'SPREADSHEET_ID',
   INITIAL_BALANCE_PROPERTY: 'SALDO_INICIAL',
+  INITIAL_BALANCE_AMAROK_PROPERTY: 'SALDO_INICIAL_AMAROK',
   LOG_SHEET: 'LOG',
   BALANCE_SHEET: 'SALDOS',
+  AMAROK_SUFFIX: ' - Amarok',
   DEFAULT_STATUS: 'Pendente',
   CANCELED_STATUS: 'Cancelado',
   HEADERS: ['ID','Criado em','OS','Placa','Modelo','Chassi','Descrição','Código da peça','Valor das peças','Valor da mão de obra','Total','Status','Observações','Responsável','Atualizado em'],
@@ -40,13 +42,16 @@ function handleRequest_(payload) {
 }
 
 function listSheets_() {
-  return getSpreadsheet_().getSheets().map(s => s.getName()).filter(name => name !== CONFIG.LOG_SHEET && name !== CONFIG.BALANCE_SHEET);
+  return getSpreadsheet_().getSheets()
+    .map(s => s.getName())
+    .filter(name => name !== CONFIG.LOG_SHEET && name !== CONFIG.BALANCE_SHEET && !isAmarokSheet_(name));
 }
 
 function buildDashboardResponse_(sheetName) {
   getDataSheet_(sheetName);
   const records = listRecords_(sheetName);
-  const saldoInicialBase = parseMoney_(PropertiesService.getScriptProperties().getProperty(CONFIG.INITIAL_BALANCE_PROPERTY) || 0);
+  const balanceProperty = getInitialBalanceProperty_(sheetName);
+  const saldoInicialBase = parseMoney_(PropertiesService.getScriptProperties().getProperty(balanceProperty) || 0);
   const aportes = listBalances_(sheetName);
   const totalAportes = roundCurrency_(aportes.reduce((sum, item) => sum + item.value, 0));
   const saldoInicial = roundCurrency_(saldoInicialBase + totalAportes);
@@ -55,7 +60,9 @@ function buildDashboardResponse_(sheetName) {
   const finalizado = roundCurrency_(ativos.filter(r => r.status === 'ok').reduce((sum, r) => sum + r.total, 0));
   const utilizado = roundCurrency_(pendente + finalizado);
   const disponivel = roundCurrency_(saldoInicial - utilizado);
-  const data = { saldoInicialBase, totalAportes, saldoInicial, pendente, finalizado, utilizado, disponivel, records:ativos, aportes };
+  const tipo = isAmarokSheet_(sheetName) ? 'amarok' : 'nacionais';
+  const periodo = baseSheetName_(sheetName);
+  const data = { saldoInicialBase, totalAportes, saldoInicial, pendente, finalizado, utilizado, disponivel, records:ativos, aportes, tipo, periodo };
   return { ok:true, records:ativos, data:data };
 }
 
@@ -196,7 +203,18 @@ function setupDiagnostics_() {
   ensureLogSheet_();
   const dataSheets = listSheets_();
   dataSheets.forEach(name => ensureHeaders_(ss.getSheetByName(name)));
-  return { ok:true, checks:{ spreadsheetId:true, initialBalanceConfigured:props.getProperty(CONFIG.INITIAL_BALANCE_PROPERTY) !== null, balanceSheet:true, logSheet:true, dataSheets:dataSheets.length }, sheets:dataSheets };
+  return {
+    ok:true,
+    checks:{
+      spreadsheetId:true,
+      initialBalanceConfigured:props.getProperty(CONFIG.INITIAL_BALANCE_PROPERTY) !== null,
+      amarokInitialBalanceConfigured:props.getProperty(CONFIG.INITIAL_BALANCE_AMAROK_PROPERTY) !== null,
+      balanceSheet:true,
+      logSheet:true,
+      dataSheets:dataSheets.length
+    },
+    sheets:dataSheets
+  };
 }
 
 function ensureLogSheet_() {
@@ -215,7 +233,25 @@ function normalizeRecord_(input) {
 
 function validateRecord_(record) { if (!record.orderNumber && !record.description) throw new Error('Informe a OS ou a descrição.'); if (record.partsValue < 0 || record.laborValue < 0) throw new Error('Os valores não podem ser negativos.'); }
 function getSpreadsheet_() { const id = PropertiesService.getScriptProperties().getProperty(CONFIG.SPREADSHEET_ID_PROPERTY); if (!id) throw new Error('Configure a propriedade SPREADSHEET_ID.'); return SpreadsheetApp.openById(id); }
-function getDataSheet_(sheetName) { const name = String(sheetName || '').trim(); if (!name) throw new Error('Aba da planilha não informada.'); if (name === CONFIG.LOG_SHEET || name === CONFIG.BALANCE_SHEET) throw new Error('Aba reservada.'); const sheet = getSpreadsheet_().getSheetByName(name); if (!sheet) throw new Error('Aba não encontrada: ' + name); return sheet; }
+function getDataSheet_(sheetName) {
+  const name = String(sheetName || '').trim();
+  if (!name) throw new Error('Aba da planilha não informada.');
+  if (name === CONFIG.LOG_SHEET || name === CONFIG.BALANCE_SHEET) throw new Error('Aba reservada.');
+  const ss = getSpreadsheet_();
+  let sheet = ss.getSheetByName(name);
+  if (!sheet && isAmarokSheet_(name)) {
+    const baseName = baseSheetName_(name);
+    if (!ss.getSheetByName(baseName)) throw new Error('Período base não encontrado: ' + baseName);
+    sheet = ss.insertSheet(name);
+    ensureHeaders_(sheet);
+    appendLog_('CRIAR_CONTROLE_AMAROK', Utilities.getUuid(), name, '', null, { periodo:baseName });
+  }
+  if (!sheet) throw new Error('Aba não encontrada: ' + name);
+  return sheet;
+}
+function isAmarokSheet_(sheetName) { return String(sheetName || '').trim().toLowerCase().endsWith(CONFIG.AMAROK_SUFFIX.toLowerCase()); }
+function baseSheetName_(sheetName) { const name = String(sheetName || '').trim(); return isAmarokSheet_(name) ? name.slice(0, -CONFIG.AMAROK_SUFFIX.length) : name; }
+function getInitialBalanceProperty_(sheetName) { return isAmarokSheet_(sheetName) ? CONFIG.INITIAL_BALANCE_AMAROK_PROPERTY : CONFIG.INITIAL_BALANCE_PROPERTY; }
 function ensureHeaders_(sheet) { if (sheet.getLastRow() === 0) { sheet.getRange(1,1,1,CONFIG.HEADERS.length).setValues([CONFIG.HEADERS]); sheet.setFrozenRows(1); } }
 function findRowById_(sheet,id) { if (sheet.getLastRow() < 2) return -1; const ids = sheet.getRange(2,1,sheet.getLastRow()-1,1).getDisplayValues(); const index = ids.findIndex(r => r[0] === id); return index === -1 ? -1 : index + 2; }
 function appendLog_(action,id,sheetName,responsible,previous,next) { const sheet = ensureLogSheet_(); sheet.appendRow([new Date(),action,id,sheetName,responsible || '',previous ? JSON.stringify(previous) : '',next ? JSON.stringify(next) : '']); }
