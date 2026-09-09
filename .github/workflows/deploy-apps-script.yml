@@ -56,50 +56,43 @@ jobs:
           const auth = JSON.parse(fs.readFileSync(authPath, 'utf8'));
           const DEFAULT_CLIENT_ID = '1072944905499-vm2v2i5dvn0a0d2o4ca36i1vge8cvbn0.apps.googleusercontent.com';
 
-          // clasp 3 usa tokens nomeados. Em CI precisamos garantir uma credencial default.
-          if (auth.tokens && !auth.tokens.default) {
-            const firstKey = Object.keys(auth.tokens).find(key => auth.tokens[key]);
-            if (firstKey) auth.tokens.default = auth.tokens[firstKey];
-          }
-
-          // Compatibilidade com exports que guardam o token diretamente.
-          if ((!auth.tokens || !auth.tokens.default) && auth.token && auth.token.refresh_token) {
-            const token = auth.token;
-            const clientId = token.client_id || token.clientId || auth.client_id || auth.clientId || DEFAULT_CLIENT_ID;
-            const clientSecret = token.client_secret || token.clientSecret || auth.client_secret || auth.clientSecret;
-            auth.tokens = auth.tokens || {};
-            auth.tokens.default = {
+          function normalizeCredential(input, inherited = {}) {
+            if (!input || typeof input !== 'object') return null;
+            const refreshToken = input.refresh_token || input.refreshToken;
+            const accessToken = input.access_token || input.accessToken;
+            if (!refreshToken && !accessToken) return null;
+            const clientId = input.client_id || input.clientId || inherited.client_id || inherited.clientId || DEFAULT_CLIENT_ID;
+            const clientSecret = input.client_secret || input.clientSecret || inherited.client_secret || inherited.clientSecret;
+            const expiryDate = input.expiry_date || input.expiryDate || input.exprity_date;
+            const tokenType = input.token_type || input.tokenType;
+            return {
               type: 'authorized_user',
               client_id: clientId,
               ...(clientSecret ? {client_secret: clientSecret} : {}),
-              ...token
+              ...(refreshToken ? {refresh_token: refreshToken} : {}),
+              ...(accessToken ? {access_token: accessToken} : {}),
+              ...(expiryDate ? {expiry_date: expiryDate} : {}),
+              ...(tokenType ? {token_type: tokenType} : {})
             };
           }
 
-          // Compatibilidade com credencial authorized_user salva diretamente na raiz.
-          if ((!auth.tokens || !auth.tokens.default) && auth.refresh_token) {
-            auth.tokens = auth.tokens || {};
-            auth.tokens.default = {
-              type: 'authorized_user',
-              client_id: auth.client_id || auth.clientId || DEFAULT_CLIENT_ID,
-              ...(auth.client_secret || auth.clientSecret ? {client_secret: auth.client_secret || auth.clientSecret} : {}),
-              refresh_token: auth.refresh_token,
-              ...(auth.access_token ? {access_token: auth.access_token} : {}),
-              ...(auth.expiry_date ? {expiry_date: auth.expiry_date} : {}),
-              ...(auth.token_type ? {token_type: auth.token_type} : {})
-            };
+          let defaultCredential = null;
+
+          if (auth.tokens && typeof auth.tokens === 'object') {
+            if (auth.tokens.default) defaultCredential = normalizeCredential(auth.tokens.default, auth.tokens.default);
+            if (!defaultCredential) {
+              const firstKey = Object.keys(auth.tokens).find(key => normalizeCredential(auth.tokens[key], auth.tokens[key]));
+              if (firstKey) defaultCredential = normalizeCredential(auth.tokens[firstKey], auth.tokens[firstKey]);
+            }
           }
 
-          // Alguns exports encapsulam a credencial em "credentials".
-          if ((!auth.tokens || !auth.tokens.default) && auth.credentials && auth.credentials.refresh_token) {
-            const credentials = auth.credentials;
-            auth.tokens = auth.tokens || {};
-            auth.tokens.default = {
-              type: 'authorized_user',
-              client_id: credentials.client_id || credentials.clientId || DEFAULT_CLIENT_ID,
-              ...(credentials.client_secret || credentials.clientSecret ? {client_secret: credentials.client_secret || credentials.clientSecret} : {}),
-              ...credentials
-            };
+          if (!defaultCredential && auth.token) defaultCredential = normalizeCredential(auth.token, auth.oauth2ClientSettings || auth);
+          if (!defaultCredential && auth.credentials) defaultCredential = normalizeCredential(auth.credentials, auth);
+          if (!defaultCredential) defaultCredential = normalizeCredential(auth, auth);
+
+          if (defaultCredential) {
+            auth.tokens = auth.tokens && typeof auth.tokens === 'object' ? auth.tokens : {};
+            auth.tokens.default = defaultCredential;
           }
 
           fs.writeFileSync(authPath, JSON.stringify(auth), {mode: 0o600});
@@ -110,7 +103,7 @@ jobs:
       - name: Conferir autenticação
         run: |
           AUTH_STATUS="$(npx clasp --auth "$HOME/.clasprc.json" show-authorized-user --json)"
-          echo "$AUTH_STATUS" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const x=JSON.parse(s); if(!x.loggedIn){console.error('Credencial clasp sem sessão OAuth válida.'); process.exit(1)} console.log('Autenticação clasp válida.')})"
+          echo "$AUTH_STATUS" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const x=JSON.parse(s); if(!x.loggedIn){console.error('CLASPRC_JSON não contém uma sessão OAuth reutilizável. Gere novamente com clasp login e atualize o secret.'); process.exit(1)} console.log('Autenticação clasp válida.')})"
 
       - name: Conferir arquivos do Apps Script
         run: npx clasp --auth "$HOME/.clasprc.json" show-file-status
