@@ -1,4 +1,2 @@
-**/**
-!apps-script/**
-!apps-script/Code.gs
-!apps-script/appsscript.json
+# O rootDir do clasp já aponta para apps-script/.
+# Mantemos todos os arquivos válidos dessa pasta disponíveis para push.
