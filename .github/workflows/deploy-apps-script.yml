@@ -54,6 +54,7 @@ jobs:
           const fs = require('fs');
           const authPath = `${process.env.HOME}/.clasprc.json`;
           const auth = JSON.parse(fs.readFileSync(authPath, 'utf8'));
+          const DEFAULT_CLIENT_ID = '1072944905499-vm2v2i5dvn0a0d2o4ca36i1vge8cvbn0.apps.googleusercontent.com';
 
           // clasp 3 usa tokens nomeados. Em CI precisamos garantir uma credencial default.
           if (auth.tokens && !auth.tokens.default) {
@@ -62,32 +63,42 @@ jobs:
           }
 
           // Compatibilidade com exports que guardam o token diretamente.
-          if ((!auth.tokens || !auth.tokens.default) && auth.token) {
+          if ((!auth.tokens || !auth.tokens.default) && auth.token && auth.token.refresh_token) {
             const token = auth.token;
-            const clientId = token.client_id || token.clientId || auth.client_id || auth.clientId;
+            const clientId = token.client_id || token.clientId || auth.client_id || auth.clientId || DEFAULT_CLIENT_ID;
             const clientSecret = token.client_secret || token.clientSecret || auth.client_secret || auth.clientSecret;
-            if (clientId && token.refresh_token) {
-              auth.tokens = auth.tokens || {};
-              auth.tokens.default = {
-                type: 'authorized_user',
-                client_id: clientId,
-                ...(clientSecret ? {client_secret: clientSecret} : {}),
-                ...token
-              };
-            }
-          }
-
-          // Compatibilidade com credencial authorized_user salva diretamente na raiz.
-          if ((!auth.tokens || !auth.tokens.default) && auth.refresh_token && (auth.client_id || auth.clientId)) {
             auth.tokens = auth.tokens || {};
             auth.tokens.default = {
               type: 'authorized_user',
-              client_id: auth.client_id || auth.clientId,
+              client_id: clientId,
+              ...(clientSecret ? {client_secret: clientSecret} : {}),
+              ...token
+            };
+          }
+
+          // Compatibilidade com credencial authorized_user salva diretamente na raiz.
+          if ((!auth.tokens || !auth.tokens.default) && auth.refresh_token) {
+            auth.tokens = auth.tokens || {};
+            auth.tokens.default = {
+              type: 'authorized_user',
+              client_id: auth.client_id || auth.clientId || DEFAULT_CLIENT_ID,
               ...(auth.client_secret || auth.clientSecret ? {client_secret: auth.client_secret || auth.clientSecret} : {}),
               refresh_token: auth.refresh_token,
               ...(auth.access_token ? {access_token: auth.access_token} : {}),
               ...(auth.expiry_date ? {expiry_date: auth.expiry_date} : {}),
               ...(auth.token_type ? {token_type: auth.token_type} : {})
+            };
+          }
+
+          // Alguns exports encapsulam a credencial em "credentials".
+          if ((!auth.tokens || !auth.tokens.default) && auth.credentials && auth.credentials.refresh_token) {
+            const credentials = auth.credentials;
+            auth.tokens = auth.tokens || {};
+            auth.tokens.default = {
+              type: 'authorized_user',
+              client_id: credentials.client_id || credentials.clientId || DEFAULT_CLIENT_ID,
+              ...(credentials.client_secret || credentials.clientSecret ? {client_secret: credentials.client_secret || credentials.clientSecret} : {}),
+              ...credentials
             };
           }
 
