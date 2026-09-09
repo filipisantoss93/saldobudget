@@ -29,7 +29,7 @@ jobs:
       - name: Configurar Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 20
 
       - name: Instalar dependências
         run: npm install
@@ -50,11 +50,56 @@ jobs:
           CLASP_SCRIPT_ID: ${{ secrets.CLASP_SCRIPT_ID }}
         run: |
           printf '%s' "$CLASPRC_JSON" > "$HOME/.clasprc.json"
-          node -e "const fs=require('fs'); fs.writeFileSync('.clasp.json', JSON.stringify({scriptId: process.env.CLASP_SCRIPT_ID, rootDir: 'apps-script'}));"
+          node <<'NODE'
+          const fs = require('fs');
+          const authPath = `${process.env.HOME}/.clasprc.json`;
+          const auth = JSON.parse(fs.readFileSync(authPath, 'utf8'));
+
+          // clasp 3 usa tokens nomeados. Em CI precisamos garantir uma credencial default.
+          if (auth.tokens && !auth.tokens.default) {
+            const firstKey = Object.keys(auth.tokens).find(key => auth.tokens[key]);
+            if (firstKey) auth.tokens.default = auth.tokens[firstKey];
+          }
+
+          // Compatibilidade com exports que guardam o token diretamente.
+          if ((!auth.tokens || !auth.tokens.default) && auth.token) {
+            const token = auth.token;
+            const clientId = token.client_id || token.clientId || auth.client_id || auth.clientId;
+            const clientSecret = token.client_secret || token.clientSecret || auth.client_secret || auth.clientSecret;
+            if (clientId && token.refresh_token) {
+              auth.tokens = auth.tokens || {};
+              auth.tokens.default = {
+                type: 'authorized_user',
+                client_id: clientId,
+                ...(clientSecret ? {client_secret: clientSecret} : {}),
+                ...token
+              };
+            }
+          }
+
+          // Compatibilidade com credencial authorized_user salva diretamente na raiz.
+          if ((!auth.tokens || !auth.tokens.default) && auth.refresh_token && (auth.client_id || auth.clientId)) {
+            auth.tokens = auth.tokens || {};
+            auth.tokens.default = {
+              type: 'authorized_user',
+              client_id: auth.client_id || auth.clientId,
+              ...(auth.client_secret || auth.clientSecret ? {client_secret: auth.client_secret || auth.clientSecret} : {}),
+              refresh_token: auth.refresh_token,
+              ...(auth.access_token ? {access_token: auth.access_token} : {}),
+              ...(auth.expiry_date ? {expiry_date: auth.expiry_date} : {}),
+              ...(auth.token_type ? {token_type: auth.token_type} : {})
+            };
+          }
+
+          fs.writeFileSync(authPath, JSON.stringify(auth), {mode: 0o600});
+          fs.writeFileSync('.clasp.json', JSON.stringify({scriptId: process.env.CLASP_SCRIPT_ID, rootDir: 'apps-script'}));
+          NODE
           chmod 600 "$HOME/.clasprc.json" .clasp.json
 
       - name: Conferir autenticação
-        run: npx clasp --auth "$HOME/.clasprc.json" show-authorized-user --json
+        run: |
+          AUTH_STATUS="$(npx clasp --auth "$HOME/.clasprc.json" show-authorized-user --json)"
+          echo "$AUTH_STATUS" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const x=JSON.parse(s); if(!x.loggedIn){console.error('Credencial clasp sem sessão OAuth válida.'); process.exit(1)} console.log('Autenticação clasp válida.')})"
 
       - name: Conferir arquivos do Apps Script
         run: npx clasp --auth "$HOME/.clasprc.json" show-file-status
