@@ -29,7 +29,7 @@ jobs:
       - name: Configurar Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
 
       - name: Instalar dependências
         run: npm install
@@ -53,16 +53,19 @@ jobs:
           node -e "const fs=require('fs'); fs.writeFileSync('.clasp.json', JSON.stringify({scriptId: process.env.CLASP_SCRIPT_ID, rootDir: 'apps-script'}));"
           chmod 600 "$HOME/.clasprc.json" .clasp.json
 
+      - name: Conferir autenticação
+        run: npx clasp --auth "$HOME/.clasprc.json" show-authorized-user --json
+
       - name: Conferir arquivos do Apps Script
-        run: npx clasp show-file-status
+        run: npx clasp --auth "$HOME/.clasprc.json" show-file-status
 
       - name: Enviar código para o Apps Script
-        run: npx clasp push --force
+        run: npx clasp --auth "$HOME/.clasprc.json" push --force
 
       - name: Atualizar implantação Web App existente
         env:
           CLASP_DEPLOYMENT_ID: ${{ secrets.CLASP_DEPLOYMENT_ID }}
         run: |
-          npx clasp create-deployment \
+          npx clasp --auth "$HOME/.clasprc.json" create-deployment \
             --deploymentId "$CLASP_DEPLOYMENT_ID" \
             --description "GitHub ${GITHUB_SHA::7}"
