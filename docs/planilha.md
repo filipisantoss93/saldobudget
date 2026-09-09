@@ -2,18 +2,31 @@
 
 O Saldo Budget usa uma planilha do Google como banco de dados interno.
 
-## Abas anuais
+## Controles por período
 
-Crie uma aba para cada período que será controlado, por exemplo:
+Crie uma aba para cada período dos **veículos nacionais**, por exemplo:
 
 - `2026`
 - `2027`
 
-A aplicação lista automaticamente todas as abas, exceto a aba reservada `LOG`.
+Essas continuam sendo as abas principais e existentes. A aplicação lista automaticamente os períodos e não exige nenhuma migração dos dados atuais.
 
-## Colunas
+### Controle paralelo da Amarok
 
-O backend cria o cabeçalho automaticamente quando a aba está vazia.
+O saldo de cortesia da Amarok é independente do saldo de veículos nacionais.
+
+Ao selecionar **Amarok** no painel pela primeira vez em um período, o backend cria automaticamente uma aba paralela seguindo o padrão:
+
+- `2026 - Amarok`
+- `2027 - Amarok`
+
+A aba Amarok possui exatamente a mesma estrutura de OS da aba nacional, mas seus registros, valores utilizados, pendências, finalizações e aportes são calculados separadamente.
+
+A interface continua mostrando apenas `2026`, `2027` etc. no seletor de período. A escolha entre **Veículos nacionais** e **Amarok** é feita pelo seletor próprio do painel.
+
+## Colunas das OS
+
+O backend cria o cabeçalho automaticamente quando uma aba está vazia.
 
 | Coluna | Campo |
 |---|---|
@@ -35,18 +48,36 @@ O backend cria o cabeçalho automaticamente quando a aba está vazia.
 
 Não altere a ordem dessas colunas depois que o sistema estiver em uso.
 
+## Saldos
+
+A aba reservada `SALDOS` registra os aportes financeiros. Cada aporte contém a aba à qual pertence, portanto:
+
+- aportes para `2026` afetam somente **Veículos nacionais** de 2026;
+- aportes para `2026 - Amarok` afetam somente **Amarok** de 2026.
+
+O saldo inicial base de veículos nacionais usa a propriedade de script:
+
+```text
+SALDO_INICIAL
+```
+
+Se houver um saldo inicial base específico para Amarok, configure:
+
+```text
+SALDO_INICIAL_AMAROK
+```
+
+Caso `SALDO_INICIAL_AMAROK` não exista, o controle Amarok começa em `R$ 0,00` e pode receber saldo normalmente pelo botão **Adicionar saldo**.
+
 ## Status recomendados
 
 - `Pendente`
-- `Aprovado`
 - `Finalizado`
 - `Cancelado`
 
-O comando antigo `deleteRecord` é aceito por compatibilidade, mas não apaga a linha. Ele altera o status para `Cancelado` e registra a ação no histórico.
-
 ## Aba LOG
 
-A aba `LOG` é criada automaticamente e registra:
+A aba `LOG` registra automaticamente:
 
 - data e hora;
 - ação executada;
@@ -56,37 +87,37 @@ A aba `LOG` é criada automaticamente e registra:
 - dados anteriores;
 - dados novos.
 
+A criação automática de um controle Amarok também é registrada no histórico.
+
 Não use a aba `LOG` para lançamentos manuais.
 
 ## Configuração do Apps Script
 
 1. Abra a planilha no Google Planilhas.
 2. Acesse **Extensões → Apps Script**.
-3. Copie o conteúdo de `apps-script/Code.gs` para o editor.
+3. Sincronize ou copie o conteúdo de `apps-script/Code.gs` para o editor.
 4. Abra **Configurações do projeto → Propriedades do script**.
-5. Crie a propriedade:
+5. Confirme a propriedade:
 
 ```text
 SPREADSHEET_ID = ID_DA_SUA_PLANILHA
 ```
 
-O ID é o trecho localizado entre `/d/` e `/edit` na URL da planilha.
-
-6. Clique em **Implantar → Nova implantação**.
-7. Selecione **Aplicativo da Web**.
-8. Execute como sua conta.
-9. Defina o acesso conforme as contas internas que utilizarão o sistema.
-10. Copie a URL final terminada em `/exec`.
+6. Mantenha `SALDO_INICIAL` para o saldo base de veículos nacionais.
+7. Configure `SALDO_INICIAL_AMAROK` apenas se quiser um saldo base inicial para Amarok.
+8. Publique uma nova versão do aplicativo da Web após atualizar o Apps Script.
 
 ## Integridade dos dados
 
 O backend aplica as seguintes proteções:
 
+- separação física entre OS nacionais e Amarok;
+- separação dos aportes por controle e período;
 - ID único gerado pelo servidor;
 - cálculo de `Total = peças + mão de obra` no servidor;
 - rejeição de valores negativos;
 - bloqueio contra gravações simultâneas;
-- cancelamento lógico em vez de exclusão física;
-- registro automático das alterações.
+- histórico das alterações;
+- prevenção de OS duplicada dentro de cada controle.
 
 Mesmo sendo uma ferramenta interna, mantenha uma rotina de backup da planilha.
